@@ -166,11 +166,11 @@ Strategies: zero-shot and few-shot. Structured JSON output validated with pydant
 trade-offs + a recommendation, and approved **before** code is written. Defaults that are purely
 mechanical may be taken, but say so.
 
-### Done (Stage 1 · data preparation) — all run and verified, nothing committed yet
+### Done (Stage 1 · data preparation) — all run, verified, committed
 
 | Step | File | Output | Result |
 |---|---|---|---|
-| 1. Scaffold | dirs, `.gitignore`, `pyproject.toml`, nbstripout filter | — | `git init` done, **no commits yet** |
+| 1. Scaffold | dirs, `.gitignore`, `pyproject.toml`, nbstripout filter | — | committed + pushed (private repo) |
 | 2. CSV → Parquet | `src/ingest/load.py` | `data/parquet/<table>.parquet` | noteevents **2,083,180** ✅; admissions 58,976; patients 46,520; diagnoses_icd 651,047 |
 | 3. Profile | `src/ingest/profile.py` | `reports/profile.json` | exact category / discharge-location literals; V667 = 1,020 adm; DEATHTIME = 5,854; ISERROR = 1 for 886 notes, NULL otherwise (no 0s) |
 | 4. Cohort | `src/cohort/build.py` | `data/derived/cohort.parquet` | 14,379 any-reason → **2,609** with `'Nursing'` note → 2,609 adult; 2,083 patients |
@@ -208,7 +208,8 @@ Choices to bring to the user:
 - LLM step: Ollama `num_ctx` must be set explicitly (silent truncation); long-note handling.
 - Hardware: RTX 3070, 8 GB VRAM → models ≤ ~8B at Q4. Ollama 0.35.1 installed (has `gemma2:2b`,
   `llama3`). vLLM would need WSL. Full-pool silver labeling ≈ days per config; consider subsampling.
-- First git commit has not been made — ask the user before committing.
+- Git: Stage 1 committed and pushed to `origin/main` (github.com/dennisdang5/GOC-pilot, **private**
+  — keep it private; `reports/` holds exact MIMIC aggregate counts, some < 10). Ask before committing.
 
 ---
 
