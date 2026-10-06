@@ -1,0 +1,30 @@
+[project]
+name = "goc-pilot"
+version = "0.1.0"
+description = "Goals-of-care detection in MIMIC-III clinical notes with local LLMs (pilot)"
+requires-python = ">=3.11"
+dependencies = [
+    "duckdb",
+    "pandas",
+    "pyarrow",
+    "pydantic>=2",
+    "scikit-learn",
+    "statsmodels",
+]
+
+[project.optional-dependencies]
+# Local inference backends. vLLM requires Linux/WSL; Ollama runs natively on Windows.
+ollama = ["ollama"]
+vllm = ["vllm"]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "nbstripout",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

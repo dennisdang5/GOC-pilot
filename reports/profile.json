@@ -1,0 +1,161 @@
+{
+  "category_counts": [
+    {
+      "category": "'Nursing/other'",
+      "n_all": 822497,
+      "n_iserror_excluded": 822497
+    },
+    {
+      "category": "'Radiology'",
+      "n_all": 522279,
+      "n_iserror_excluded": 522279
+    },
+    {
+      "category": "'Nursing'",
+      "n_all": 223556,
+      "n_iserror_excluded": 223182
+    },
+    {
+      "category": "'ECG'",
+      "n_all": 209051,
+      "n_iserror_excluded": 209051
+    },
+    {
+      "category": "'Physician '",
+      "n_all": 141624,
+      "n_iserror_excluded": 141281
+    },
+    {
+      "category": "'Discharge summary'",
+      "n_all": 59652,
+      "n_iserror_excluded": 59652
+    },
+    {
+      "category": "'Echo'",
+      "n_all": 45794,
+      "n_iserror_excluded": 45794
+    },
+    {
+      "category": "'Respiratory '",
+      "n_all": 31739,
+      "n_iserror_excluded": 31701
+    },
+    {
+      "category": "'Nutrition'",
+      "n_all": 9418,
+      "n_iserror_excluded": 9400
+    },
+    {
+      "category": "'General'",
+      "n_all": 8301,
+      "n_iserror_excluded": 8236
+    },
+    {
+      "category": "'Rehab Services'",
+      "n_all": 5431,
+      "n_iserror_excluded": 5408
+    },
+    {
+      "category": "'Social Work'",
+      "n_all": 2670,
+      "n_iserror_excluded": 2661
+    },
+    {
+      "category": "'Case Management '",
+      "n_all": 967,
+      "n_iserror_excluded": 953
+    },
+    {
+      "category": "'Pharmacy'",
+      "n_all": 103,
+      "n_iserror_excluded": 101
+    },
+    {
+      "category": "'Consult'",
+      "n_all": 98,
+      "n_iserror_excluded": 98
+    }
+  ],
+  "discharge_location_counts": [
+    {
+      "discharge_location": "'HOME'",
+      "n": 18962
+    },
+    {
+      "discharge_location": "'HOME HEALTH CARE'",
+      "n": 13963
+    },
+    {
+      "discharge_location": "'SNF'",
+      "n": 7705
+    },
+    {
+      "discharge_location": "'REHAB/DISTINCT PART HOSP'",
+      "n": 6429
+    },
+    {
+      "discharge_location": "'DEAD/EXPIRED'",
+      "n": 5854
+    },
+    {
+      "discharge_location": "'LONG TERM CARE HOSPITAL'",
+      "n": 2305
+    },
+    {
+      "discharge_location": "'SHORT TERM HOSPITAL'",
+      "n": 1534
+    },
+    {
+      "discharge_location": "'DISC-TRAN CANCER/CHLDRN H'",
+      "n": 669
+    },
+    {
+      "discharge_location": "'DISCH-TRAN TO PSYCH HOSP'",
+      "n": 446
+    },
+    {
+      "discharge_location": "'HOSPICE-HOME'",
+      "n": 402
+    },
+    {
+      "discharge_location": "'LEFT AGAINST MEDICAL ADVI'",
+      "n": 365
+    },
+    {
+      "discharge_location": "'HOSPICE-MEDICAL FACILITY'",
+      "n": 153
+    },
+    {
+      "discharge_location": "'HOME WITH HOME IV PROVIDR'",
+      "n": 67
+    },
+    {
+      "discharge_location": "'OTHER FACILITY'",
+      "n": 63
+    },
+    {
+      "discharge_location": "'ICF'",
+      "n": 47
+    },
+    {
+      "discharge_location": "'DISC-TRAN TO FEDERAL HC'",
+      "n": 11
+    },
+    {
+      "discharge_location": "'SNF-MEDICAID ONLY CERTIF'",
+      "n": 1
+    }
+  ],
+  "v667_distinct_hadm": 1020,
+  "admissions_with_deathtime": 5854,
+  "iserror_counts": [
+    {
+      "iserror": null,
+      "n": 2082294
+    },
+    {
+      "iserror": 1,
+      "n": 886
+    }
+  ]
+}

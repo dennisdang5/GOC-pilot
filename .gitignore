@@ -1,0 +1,25 @@
+# --- MIMIC-III data: never committed (PhysioNet DUA) ---
+# Ignore everything under data/, but keep the directory skeleton via .gitkeep.
+data/**
+!data/**/
+!data/**/.gitkeep
+
+# Data file types anywhere in the repo
+*.parquet
+*.csv
+*.csv.gz
+*.duckdb
+*.duckdb.wal
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# IDE
+.idea/
