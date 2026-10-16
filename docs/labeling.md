@@ -30,7 +30,11 @@ within teams, even between credentialed users.
   - "Will hold family meeting tomorrow" (planned, not yet happened)
   - Clinicians discussing among themselves
 - Use **unsure** only when you genuinely can't decide.
-- Time spent is recorded automatically. You can go back and re-save; the latest save wins.
+- **Misread something? Change it anytime.** Use **◀ Prev** or the **Go to note** list in the
+  sidebar, which shows your saved answer for each note. Pick the new answer and click **Save
+  label** again. Your latest save is the one that counts. If you change an answer without saving,
+  the app warns you.
+- Time spent is recorded automatically.
 
 ## Sending labels back
 When you're done, share `data/labels/<assignment>_<INITIALS>.jsonl` with the team. It holds

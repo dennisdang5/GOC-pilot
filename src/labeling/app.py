@@ -107,6 +107,10 @@ def read_own_labels(path: Path) -> dict[int, dict]:
 
 # ---------- UI ----------
 
+def show(value: str) -> str:
+    return "unsure" if value == "unclear" else value
+
+
 def pick(options: list, value) -> int | None:
     """Radio index for a saved value; None (nothing selected) for a new note."""
     return options.index(value) if value in options else None
@@ -153,10 +157,16 @@ def main() -> None:
 
     with st.sidebar:
         st.progress(len(done) / n, text=f"{len(done)} of {n} labeled")
-        options = list(range(n))
+        if len(done) == n:
+            st.success("All notes labeled. You can still go back and change any answer.")
+
+        def saved(i: int) -> str:
+            rec = done.get(notes.at[i, "ROW_ID"])
+            return show(rec["goc_present"]) if rec else "—"
+
         st.session_state.idx = st.selectbox(
-            "Go to note", options, index=st.session_state.idx,
-            format_func=lambda i: f"{i + 1}. {'✓' if notes.at[i, 'ROW_ID'] in done else '·'}")
+            "Go to note (your saved answer)", list(range(n)), index=st.session_state.idx,
+            format_func=lambda i: f"{i + 1}. {saved(i)}")
         c1, c2 = st.columns(2)
         if c1.button("◀ Prev", disabled=st.session_state.idx == 0):
             st.session_state.idx -= 1
@@ -178,12 +188,15 @@ def main() -> None:
     left, right = st.columns([3, 2])
     with right:
         st.subheader(f"Note {i + 1} of {n}")
-        st.caption(f"ROW_ID {row_id} · {row['CATEGORY'].strip()} · {len(text):,} chars"
-                   + (" · already labeled (saving replaces it)" if prev else ""))
+        st.caption(f"ROW_ID {row_id} · {row['CATEGORY'].strip()} · {len(text):,} chars")
         goc = st.radio("GOC present?", YNU, index=pick(YNU, prev.get("goc_present")),
-                       format_func=lambda x: "unsure" if x == "unclear" else x,
-                       horizontal=True, key=k("goc"))
+                       format_func=show, horizontal=True, key=k("goc"))
         st.caption(DEFINITION)
+        if prev and goc == prev["goc_present"]:
+            st.info(f"Saved answer: **{show(goc)}**. To change it, pick another answer and save.")
+        elif prev and goc is not None:
+            st.warning(f"Changed from **{show(prev['goc_present'])}** to **{show(goc)}**, "
+                       "not saved yet. Click Save label to keep the change.")
 
         if st.button("Save label", type="primary", key=k("save")):
             elapsed = (time.time() - st.session_state[timer_key]) / 60

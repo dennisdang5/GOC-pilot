@@ -48,6 +48,24 @@ def test_label_two_notes(data_dir):
     assert not any(t in "".join(lines) for t in NOTES.values())
 
 
+def test_go_back_and_change_answer(data_dir):
+    at = AppTest.from_file(APP, default_timeout=30).run()
+    at.text_input(key="annotator").input("tt").run()
+    at.radio(key="goc_11").set_value("yes").run()
+    at.button(key="save_11").click().run()            # moves on to note 2
+    at.sidebar.button[0].click().run()                # ◀ Prev, back to note 1
+    assert at.radio(key="goc_11").value == "yes"
+    assert any("Saved answer" in m.value for m in at.info)
+    at.radio(key="goc_11").set_value("no").run()
+    assert any("not saved yet" in w.value for w in at.warning)
+    at.button(key="save_11").click().run()
+    assert not at.exception
+
+    from src.labeling.collect import read_labels
+    latest, problems = read_labels(data_dir / "labels" / "dev_Z_TT.jsonl")
+    assert not problems and latest[11].goc_present == "no"   # latest save wins
+
+
 def test_save_needs_an_answer(data_dir):
     at = AppTest.from_file(APP, default_timeout=30).run()
     at.text_input(key="annotator").input("tt").run()
