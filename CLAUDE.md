@@ -82,8 +82,9 @@ beats another unless McNemar's test supports it; otherwise describe them as comp
 > and the **patient and/or family or surrogate**, in which **goals, values, prognosis, or
 > preferences for future treatment in serious illness** were discussed.
 
-Three tests, judged separately; `goc_present` is derived. "Clinician" includes physicians, nursing,
-social work, case management, chaplaincy.
+Labelers judge `goc_present` **directly** against this definition (decided 2026-10-16; replaced
+the earlier three-separate-tests form to cut labeling effort). "Clinician" includes physicians,
+nursing, social work, case management, chaplaincy.
 
 ### Explicit negatives
 
@@ -91,7 +92,7 @@ social work, case management, chaplaincy.
 |---|---|
 | `Code status: DNR` with no documented discussion | no — `order_only` |
 | "Palliative care consulted" | no — `consult_only` |
-| "Will hold family meeting tomorrow" | no — `planned_only`, `anticipated: true` |
+| "Will hold family meeting tomorrow" | no — `planned_only` |
 | Clinicians discussing among themselves | no — `clinician_only` |
 | "Per outpatient oncologist, goals previously discussed" | **yes**, `secondhand: true` |
 
@@ -100,18 +101,14 @@ social work, case management, chaplaincy.
 ```json
 {
   "row_id": 0,
-  "interaction_documented": "yes|no|unclear",
-  "participants": ["patient|family|surrogate|clinician_only|unclear"],
-  "content_relevant": "yes|no|unclear",
+  "assignment": "test_physician|dev_A..dev_E",
   "goc_present": "yes|no|unclear",
-  "evidence_start": 0, "evidence_end": 0,  // char positions in unmodified TEXT; required if yes
-  "negative_reason": "order_only|consult_only|planned_only|clinician_only|no_serious_illness_context|no_goc_content|null",
-  "goc_type": "family_meeting|code_status|prognosis_disclosure|hospice_transition|acp_general|other|null",
-  "secondhand": false,
-  "anticipated": false,
+  "evidence_start": 0, "evidence_end": 0,  // char positions in unmodified TEXT; required if yes, else null
+  "negative_reason": "order_only|consult_only|planned_only|clinician_only|no_serious_illness_context|no_goc_content|null",  // optional, only if no
+  "secondhand": false,  // only if yes
   "annotator": "initials",
-  "confidence": 1,
-  "minutes_spent": 0
+  "minutes_spent": 0,  // auto-timed
+  "labeled_at": "ISO-8601 UTC"
 }
 ```
 
@@ -235,8 +232,8 @@ Strata done 2026-10-16 (see "Strata" above):
   DS 4 · SW 3) and `dev_A`…`dev_E` (6 each). Columns `ROW_ID, CATEGORY, n_chars, label_order`
   (stratum hidden). Coordinator sends each person their file directly.
 - `src/labeling/app.py` (Streamlit): one-time NOTEEVENTS conversion from the labeler's own
-  download; checks every ROW_ID exists with matching `n_chars`; three tests → derived
-  `goc_present`; pasted evidence verified and stored as positions; auto-timed; append-only
+  download; checks every ROW_ID exists with matching `n_chars`; direct yes/no/unclear
+  `goc_present` (evidence required if yes, optional reason if no; no confidence); pasted evidence verified and stored as positions; auto-timed; append-only
   JSONL `data/labels/<assignment>_<INITIALS>.jsonl`. Schema: `src/labeling/schema.py`.
 - `src/labeling/collect.py [LABELS_DIR]` validates returned files and reports coverage. Member
   guide: `docs/labeling.md`.

@@ -5,22 +5,8 @@ import pytest
 from pydantic import ValidationError
 
 from src.labeling.assign import split_dev
-from src.labeling.derive import derive_goc, find_evidence
+from src.labeling.derive import find_evidence
 from src.labeling.schema import GOCLabel
-
-
-@pytest.mark.parametrize("interaction, participants, content, expected", [
-    ("yes", ["family"], "yes", "yes"),
-    ("yes", ["patient", "surrogate"], "yes", "yes"),
-    ("yes", ["clinician_only"], "yes", "no"),
-    ("no", ["family"], "yes", "no"),
-    ("yes", ["family"], "no", "no"),
-    ("unclear", ["family"], "yes", "unclear"),
-    ("yes", ["unclear"], "yes", "unclear"),
-    ("unclear", ["unclear"], "no", "no"),
-])
-def test_derive_goc(interaction, participants, content, expected):
-    assert derive_goc(interaction, participants, content) == expected
 
 
 NOTE = "Pt intubated.\n\nMet with  wife\nand daughter;\tthey wish to\nfocus on comfort."
@@ -42,39 +28,40 @@ def test_find_evidence_not_found(pasted):
 
 
 def base(**kw):
-    rec = dict(row_id=1, assignment="dev_A", interaction_documented="yes",
-               participants=["family"], content_relevant="yes", goc_present="yes",
-               evidence_start=0, evidence_end=10, goc_type="family_meeting",
-               annotator="TT", confidence=4, minutes_spent=2.5,
+    rec = dict(row_id=1, assignment="dev_A", goc_present="yes", evidence_start=0,
+               evidence_end=10, annotator="TT", minutes_spent=2.5,
                labeled_at="2026-10-16T00:00:00+00:00")
     rec.update(kw)
     return rec
 
 
-def test_valid_yes_label():
-    GOCLabel.model_validate(base())
+NO = dict(goc_present="no", evidence_start=None, evidence_end=None)
 
 
 @pytest.mark.parametrize("changes", [
-    dict(goc_present="no"),                                    # doesn't match the three tests
+    {},
+    dict(secondhand=True),
+    NO,
+    dict(NO, negative_reason="order_only"),
+    dict(goc_present="unclear", evidence_start=None, evidence_end=None),
+])
+def test_valid_labels(changes):
+    GOCLabel.model_validate(base(**changes))
+
+
+@pytest.mark.parametrize("changes", [
     dict(evidence_start=None, evidence_end=None),              # yes needs evidence
-    dict(goc_type=None),                                       # yes needs goc_type
-    dict(negative_reason="consult_only"),                      # yes can't have a negative reason
-    dict(participants=["family", "clinician_only"]),           # clinician_only is exclusive
     dict(evidence_end=None),                                   # positions set together
-    dict(confidence=6),
+    dict(evidence_start=10, evidence_end=5),
+    dict(negative_reason="consult_only"),                      # reason only for no
+    dict(goc_present="no"),                                    # no can't carry evidence
+    dict(NO, secondhand=True),                                 # secondhand only for yes
+    dict(goc_present="maybe"),
     dict(annotator="T1"),
-    dict(interaction_documented="no", goc_present="no", goc_type=None),  # no needs a reason
 ])
 def test_invalid_labels(changes):
     with pytest.raises(ValidationError):
         GOCLabel.model_validate(base(**changes))
-
-
-def test_valid_no_label():
-    GOCLabel.model_validate(base(interaction_documented="no", goc_present="no", goc_type=None,
-                                 evidence_start=None, evidence_end=None,
-                                 negative_reason="order_only"))
 
 
 def test_split_dev_chunks():

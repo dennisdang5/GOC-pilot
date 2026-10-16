@@ -33,11 +33,8 @@ def test_label_one_note(data_dir):
     at.text_input(key="annotator").input("tt").run()
     assert not at.exception
 
-    at.radio(key="interaction_11").set_value("yes")
-    at.multiselect(key="participants_11").set_value(["family"])
-    at.radio(key="content_11").set_value("yes")
+    at.radio(key="goc_11").set_value("yes").run()
     at.text_area(key="evidence_11").input("Family meeting held with wife and son.")
-    at.selectbox(key="gtype_11").set_value("family_meeting")
     at.run()
     at.button(key="save_11").click().run()
     assert not at.exception
@@ -49,10 +46,22 @@ def test_label_one_note(data_dir):
         "Family meeting held with wife and son."
     # no note text in the label file
     assert all(isinstance(v, (int, float, bool, list, type(None))) or k in
-               {"assignment", "interaction_documented", "content_relevant", "goc_present",
-                "goc_type", "negative_reason", "annotator", "labeled_at"}
+               {"assignment", "goc_present", "negative_reason", "annotator", "labeled_at"}
                for k, v in rec.items())
     assert "Family meeting held" not in lines[-1]
+
+
+def test_label_no_with_reason(data_dir):
+    at = AppTest.from_file(APP, default_timeout=30).run()
+    at.text_input(key="annotator").input("tt").run()
+    at.sidebar.selectbox[1].set_value(1).run()          # "Go to note" -> note 2 (ROW_ID 12)
+    at.radio(key="goc_12").set_value("no").run()
+    at.selectbox(key="neg_12").set_value("order_only").run()
+    at.button(key="save_12").click().run()
+    assert not at.exception
+    rec = json.loads((data_dir / "labels" / "dev_Z_TT.jsonl").read_text().splitlines()[-1])
+    assert rec["row_id"] == 12 and rec["goc_present"] == "no"
+    assert rec["negative_reason"] == "order_only" and rec["evidence_start"] is None
 
 
 def test_mismatched_notes_block_labeling(data_dir):

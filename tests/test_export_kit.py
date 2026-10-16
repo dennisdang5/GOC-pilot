@@ -33,11 +33,8 @@ def test_kit_export_and_label(tmp_path):
     at = AppTest.from_file(str(kit / "src" / "labeling" / "app.py"), default_timeout=30).run()
     at.text_input(key="annotator").input("ab").run()
     at.selectbox(key="assignment").set_value("dev_Z").run()
-    at.radio(key="interaction_7").set_value("yes")
-    at.multiselect(key="participants_7").set_value(["surrogate"])
-    at.radio(key="content_7").set_value("yes")
+    at.radio(key="goc_7").set_value("yes").run()
     at.text_area(key="evidence_7").input("he would not want intubation.")
-    at.selectbox(key="gtype_7").set_value("acp_general")
     at.run()
     at.button(key="save_7").click().run()
     assert not at.exception
