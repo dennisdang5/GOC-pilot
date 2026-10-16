@@ -1,94 +1,101 @@
 # CLAUDE.md — GOC Detection in MIMIC-III (Pilot)
 
-## ⛔ Data handling rules (read first, no exceptions)
+## 1. ⛔ Data handling rules (read first, no exceptions)
 
 This repo works with **MIMIC-III**, governed by the PhysioNet Credentialed Health Data Use
 Agreement. The DUA prohibits sharing the data with third parties, **including through APIs**.
 Claude Code is an API.
 
 **Claude must NEVER:**
-
 - `Read`, `cat`, `head`, `tail`, `less`, or otherwise load any file under `data/` into the conversation
 - Run a command or write code whose terminal output includes note text
 - Put note text into exception messages, logs, or assertion messages (log `ROW_ID`s instead)
-- Print `str(e)` from DuckDB/CSV errors — they can contain the raw CSV line. Print only the
+- Print `str(e)` from DuckDB/CSV errors. They can contain the raw CSV line. Print only the
   exception class name and the table/file involved.
 - Echo, quote, or paraphrase note text that appears anywhere
 - Send note text to a hosted model API
+- Build any export that packages note text for sending to someone
 
 **Working pattern:** Claude writes code → Claude or the user runs it → only **aggregates** enter the
-conversation (counts, rates, κ, precision/recall, confusion matrices, schema errors, ROW_IDs).
+conversation (counts, rates, precision/recall, confusion matrices, schema errors, ROW_IDs).
 
-To debug against text, use `tests/fixtures/synthetic_notes.jsonl` (hand-written fake notes, safe to
-read). When a real note fails in an instructive way, the user writes a synthetic note reproducing the
-pattern and adds it to the fixtures.
-
+To debug against text, use synthetic notes only: `tests/fixtures/synthetic_notes.jsonl`
+(hand-written fake notes, safe to read; not created yet) or synthetic strings inside tests. When a
+real note fails in an instructive way, the user writes a synthetic note reproducing the pattern.
 If a task seems to require reading real note text, stop and say so.
 
 **Also enforced:**
-- `data/` is gitignored. Notebook outputs stripped before commit (`nbstripout`).
-- Labeling happens locally (`src/labeling/app.py`, Streamlit on localhost, telemetry off). No Google
-  Sheets, Airtable, or hosted labeling tools. Each labeler uses **their own** PhysioNet download
-  (PhysioNet FAQ: sharing within teams is not permitted). Only **ID-only** assignment files go out
-  and only **text-free** label files come back. Never build an export that packages note text.
-- All LLM inference uses **locally deployed open-weight models** (vLLM or Ollama).
+- `data/` is gitignored. Notebook outputs are stripped before commit (`nbstripout`).
+- Labeling happens locally in the Streamlit app (localhost only, telemetry off). No Google Sheets,
+  Airtable, or hosted labeling tools.
+- Each labeler uses **their own** PhysioNet download. PhysioNet FAQ: "Sharing data within teams or
+  classes is not permitted." Only **ID-only** assignment files go out; only **text-free** label
+  files come back.
+- All LLM inference uses **locally deployed open-weight models** (Ollama, or vLLM via WSL).
 
 ---
 
-## Project
+## 2. How to work with the user
 
-**Goal:** Determine whether local LLMs can identify goals-of-care (GOC) documentation in MIMIC-III
-clinical notes, validated against a small physician-reviewed gold standard, and use the best
-configuration as a weak-supervision labeler for the larger unlabeled corpus.
-
-MIMIC-III ships raw notes only (`NOTEEVENTS.TEXT`) with no GOC labels. Ground truth is created by
-this project.
-
-### Scope: Milestone 1 only
-
-**M1.** Develop and evaluate an LLM-assisted weak-supervision approach to identify GOC conversations,
-using a small human-reviewed gold standard for model development and evaluation.
-
-Out of scope this semester (future work): component-level content/comprehensiveness (former M2),
-keyword-baseline comparison, trade-off analysis. Do not build these unless asked.
+- **Every design choice goes to the user first**: options + trade-offs + a recommendation, approved
+  **before** code is written. Purely mechanical defaults may be taken, but say so.
+- Concepts before code. Explain, confirm, then implement. Small verified steps, not large modules.
+- When the data looks wrong, say so rather than coding around it.
+- **Ask before committing or pushing.**
 
 ---
 
-## Pilot design
+## 3. Project
+
+**Goal:** Find out whether local LLMs can identify goals-of-care (GOC) documentation in MIMIC-III
+clinical notes, validated against a small physician-labeled gold standard. Then use the best
+configuration as a weak-supervision (silver) labeler for the larger unlabeled pool.
+
+MIMIC-III ships raw notes only (`NOTEEVENTS.TEXT`) with no GOC labels. This project creates the
+ground truth.
+
+**Scope: Milestone 1 only.** Develop and evaluate an LLM-assisted weak-supervision approach to
+identify GOC conversations, using the small human-labeled sets for development and evaluation.
+Out of scope this semester (don't build unless asked): component-level content /
+comprehensiveness (former M2), keyword-baseline comparison, trade-off analysis.
+
+---
+
+## 4. Study design
+
+### Sets
 
 | Set | n | Labeled by | Purpose |
 |---|---|---|---|
-| **Test** | 50 | Physician only (single expert, decided 2026-10-16) | All reported numbers. Touched **once**. |
-| **Dev** | 30 | 5 members × 6 notes, one labeler each | Prompt tuning and error inspection |
-| **Few-shot examples** | ~6 | Synthetic (hand-written) | In-prompt demonstrations |
-| **Unlabeled pool** | rest of candidates | — | Weak-supervision (silver) labeling |
+| **Test** | 50 | Physician only (single expert) | All reported numbers. Touched **once**. |
+| **Dev** | 30 | 5 members × 6 notes, one labeler per note | Prompt tuning and error inspection |
+| **Few-shot examples** | ~6 | Synthetic (hand-written) | In-prompt demonstrations. Can never leak into test. |
+| **Unlabeled pool** | everything else (~61.8k) | the best LLM config | Silver labeling (Stage 6) |
 
-Test and dev are disjoint samples. Few-shot examples are synthetic, so they can never leak into test.
+Test and dev are disjoint, and no patient appears in both.
 
-**Test sampling:** 35 cues-present / 15 cues-missing (decided 2026-10-16; was 25 strong /
-15 weak / 10 background). Dev uses the same ratio (~21 / 9). Positive-heavy by design; never
-report the raw positive rate as representative of MIMIC.
+### Sampling (two strata)
+- **Cues present / cues missing**, assigned by one screening phrase list. A note matching any
+  phrase is cues-present.
+- **Test: 35 cues-present + 15 cues-missing. Dev: 21 + 9.**
+- Positive-heavy by design. **Never report the raw positive rate as representative of MIMIC.**
+- **The stratum is not a label.** It only steers sampling. It is hidden during labeling and kept
+  for analysis (e.g. how much real GOC sits in cues-missing).
+- **No sampling weights.** All metrics are reported unweighted on the sample, with per-stratum
+  breakdowns. Pool-level prevalence comes from the Stage 6 silver labels, not from re-weighting test.
 
-**Statistical framing:** pilot. Report 95% Wilson CIs on every proportion. Do not claim one model
-beats another unless McNemar's test supports it; otherwise describe them as comparable.
+### Labeling
 
----
-
-## Labeling
-
-### Operational definition
-
+**Operational definition:**
 > A note contains documented GOC communication if it records an **interaction** between clinician(s)
 > and the **patient and/or family or surrogate**, in which **goals, values, prognosis, or
 > preferences for future treatment in serious illness** were discussed.
 
-Labelers answer `goc_present` **directly** against this definition: yes / no / unsure (stored as
-`unclear`), with no evidence, reason or confidence (decided 2026-10-16, to cut labeling effort;
-replaced the three-tests form). No human evidence spans exist, so gold labels can't be audited
-from the label file alone. "Clinician" includes physicians,
-nursing, social work, case management, chaplaincy.
+"Clinician" includes physicians, nursing, social work, case management, chaplaincy.
 
-### Explicit negatives
+Labelers answer **one question per note: GOC present? yes / no / unsure** (stored as `unclear`).
+There is no evidence quote, reason, or confidence. This form replaced an earlier three-tests form
+with required evidence, to cut labeling effort.
 
 | Case | Label |
 |---|---|
@@ -96,218 +103,221 @@ nursing, social work, case management, chaplaincy.
 | "Palliative care consulted" | no |
 | "Will hold family meeting tomorrow" | no |
 | Clinicians discussing among themselves | no |
-| "Per outpatient oncologist, goals previously discussed" | **yes** |
+| "Per outpatient oncologist, goals previously discussed" (secondhand) | **yes** |
 
-### Label schema — every labeled note
-
+**Label schema** (`src/labeling/schema.py`), one JSON line per save, latest save per `row_id` wins:
 ```json
 {
   "row_id": 0,
-  "assignment": "test_physician|dev_A..dev_E",
-  "goc_present": "yes|no|unclear",  // shown to labelers as yes / no / unsure
+  "assignment": "test_physician | dev_A .. dev_E",
+  "goc_present": "yes | no | unclear",
   "annotator": "initials",
-  "minutes_spent": 0,  // auto-timed
+  "minutes_spent": 0.0,
   "labeled_at": "ISO-8601 UTC"
 }
 ```
 
----
-
-## Decisions already made (ask before changing)
-
-**Cohort** — admissions matching ANY (OR, not AND):
-- `ADMISSIONS.DEATHTIME IS NOT NULL`
-- `ADMISSIONS.DISCHARGE_LOCATION ILIKE '%HOSPICE%'`
-- `PATIENTS.DOD <= ADMISSIONS.DISCHTIME + INTERVAL 365 DAY`
-- `DIAGNOSES_ICD.ICD9_CODE = 'V667'`
-
-Adults only.
-
-AND restricted to admissions with ≥1 `'Nursing'` note where `COALESCE(ISERROR, 0) = 0`
-(decided 2026-10-06). `'Nursing'` and `'Nursing/other'` almost never co-occur in an admission
-(87 of ~43.9k), and Physician / Social Work / Case Management / General / Consult notes exist
-almost only in `'Nursing'` admissions. The restriction keeps one documentation period with the
-full note mix. Provisional size: 2,609 admissions, 148,438 candidate notes.
-
-**Note categories kept** (exact literals from `reports/profile.json`; trailing spaces matter):
-`'Physician '`, `'General'`, `'Social Work'`, `'Consult'`, `'Discharge summary'`.
-`'Nursing/other'` is excluded on purpose (see above). `'Nursing'` and `'Case Management '` were
-dropped from the candidate pool on 2026-10-15 (user decision). The cohort rule requiring ≥1
-`'Nursing'` note **stays**: it only marks the documentation period, and nursing notes are never
-candidates.
-
-**Limitations to report:** silver-label prevalence estimates (Stage 6) describe `'Nursing'`-period
-admissions only, not all of MIMIC-III. Gold and silver results cover the 5 kept note types only.
-GOC documented only in nursing or case-management notes counts as out of scope. The test gold standard
-is a single physician's labels (no reliability estimate).
-
-**Strata (decided 2026-10-16):** two strata, **cues present / cues missing**, from one combined
-screening phrase list (`src/sampling/cues.py`). A note matching any phrase is cues-present. The
-list must include direction-neutral value language (`important to (him|her)`, `matters most`,
-`hopes to`, `wants to be able to`). Negation is ignored ("no family meeting" still counts as a cue),
-because strata only steer sampling. Template headings (e.g. a bare `Code status:` field) are
-measured with `src/sampling/cue_frequency.py` and kept off the list unless the user approves them.
-
-**Models:** 3–4 local open-weight models across families/sizes that fit available GPU.
-Strategies: zero-shot and few-shot. Structured JSON output validated with pydantic.
-
----
-
-## Guardrails
-
+### Statistics and evaluation guardrails
+- Pilot framing. Report **95% Wilson CIs** on every proportion.
+- Don't claim one model beats another unless **McNemar's test** supports it; otherwise call them
+  comparable.
+- `unclear` is collapsed to `no` for all metrics (primary analysis). Also report a sensitivity
+  analysis that excludes `unclear`. Apply the same rule to humans and models.
+- **The test set is frozen.** No scoring, error inspection or peeking until prompts are frozen on
+  dev. Whoever tunes prompts must not open `labels/test_physician_*` in the labeling repo until
+  then.
+- Labelers work blind (no model output, keyword hits or stratum visible), with notes in randomized
+  order.
 - **Screening regex (`src/sampling/`) is a sampling tool, never a method under evaluation.**
-  `src/eval/` must not import it. A test enforces this.
-- **Test set is frozen.** No scoring, no error inspection, no peeking until prompts are frozen on dev.
-- Annotators label blind (no model or keyword output visible), notes in randomized order.
-- Test gold standard is a single physician: no human κ, no adjudication (decided 2026-10-16).
-  Report this as a limitation (no measure of gold-standard reliability).
-- `unclear` labels are collapsed to `no` for all metrics (primary analysis). Report a
-  sensitivity analysis excluding `unclear`. Apply the same rule to humans and models.
-- Every LLM `evidence_span` is checked for exact (whitespace-normalized) presence in the source note.
+  `src/eval/` must not import it (`tests/test_eval_independence.py` enforces this).
+- Every LLM evidence span is checked for exact (whitespace-normalized) presence in the source note.
   Report the verification rate per model.
-- `[** **]` de-identification placeholders: handled identically for every method.
+- `[** **]` de-identification placeholders are handled identically for every method.
+
+### Limitations to report
+- Results describe `'Nursing'`-period admissions only (see cohort rule), not all of MIMIC-III.
+- Only the 5 kept note types are covered. GOC documented only in nursing or case-management notes
+  is out of scope.
+- The test gold standard is one physician's labels: no human κ, no adjudication, no reliability
+  estimate. There are no human evidence spans, so a gold label can only be audited by re-reading
+  the note.
 
 ---
 
-## Current status — WHERE WE LEFT OFF (2026-10-16)
+## 5. Pipeline: decisions and results (ask before changing any of these)
 
-**Process rule from the user:** every design choice is brought to the user with options +
-trade-offs + a recommendation, and approved **before** code is written. Defaults that are purely
-mechanical may be taken, but say so.
-
-### Done (Stage 1 · data preparation) — all run, verified, committed
+### Stage 1 · Data preparation — done
 
 | Step | File | Output | Result |
 |---|---|---|---|
-| 1. Scaffold | dirs, `.gitignore`, `pyproject.toml`, nbstripout filter | — | committed + pushed (private repo) |
-| 2. CSV → Parquet | `src/ingest/load.py` | `data/parquet/<table>.parquet` | noteevents **2,083,180** ✅; admissions 58,976; patients 46,520; diagnoses_icd 651,047 |
-| 3. Profile | `src/ingest/profile.py` | `reports/profile.json` | exact category / discharge-location literals; V667 = 1,020 adm; DEATHTIME = 5,854; ISERROR = 1 for 886 notes, NULL otherwise (no 0s) |
-| 4. Cohort | `src/cohort/build.py` | `data/derived/cohort.parquet` | 14,379 any-reason → **2,609** with `'Nursing'` note → 2,609 adult; 2,083 patients |
-| 5. Candidates | `src/cohort/candidates.py` | `data/derived/candidates.parquet` | (re-run 2026-10-15, 5 categories) 64,809 → −0 empty → −2,968 exact dups → **61,841 notes**, 2,607 adm (2 cohort adm have no candidates), 2,081 patients |
+| Scaffold | dirs, `.gitignore`, `pyproject.toml`, nbstripout | — | done |
+| CSV → Parquet | `src/ingest/load.py` | `data/parquet/<table>.parquet` | noteevents **2,083,180** ✅ · admissions 58,976 · patients 46,520 · diagnoses_icd 651,047 |
+| Profile | `src/ingest/profile.py` | `reports/profile.json` | exact category / discharge-location literals · V667 = 1,020 adm · DEATHTIME = 5,854 · ISERROR = 1 for 886 notes, NULL otherwise (no 0s) |
+| Cohort | `src/cohort/build.py` | `data/derived/cohort.parquet` | 14,379 any-reason → **2,609** with a `'Nursing'` note → 2,609 adults · 2,083 patients |
+| Candidates | `src/cohort/candidates.py` | `data/derived/candidates.parquet` | 64,809 → −0 empty → −2,968 exact dups → **61,841 notes** · 2,607 adm · 2,081 patients |
 
-Approved choices (beyond "Decisions already made"):
-- **Cohort:** 365-day rule uses `PATIENTS.DOD` (hosp + SSN merged); keep **all** qualifying
-  admissions per patient (patient overlap handled at sampling); adult = `date_sub('year', DOB,
-  ADMITTIME) >= 18`. Output columns: `SUBJECT_ID, HADM_ID, ADMITTIME, died_in_hosp, hospice_dc,
-  died_365d, v667`. Reason counts: died_365d 2,565 (1,550 sole reason), died_in_hosp 898,
-  v667 196, hospice_dc 120.
-- **Candidates:** remove **exact** duplicate TEXT within an admission (keep lowest `ROW_ID`;
-  near-dups deferred); keep discharge-summary addenda (102) with `DESCRIPTION` column; drop
-  empty notes, keep long notes whole with `n_chars` (truncation/chunking decided at LLM step);
-  no chart-time filter; TEXT stored unmodified (`[** **]` handled later, identically for all
-  methods). Output columns: `ROW_ID, SUBJECT_ID, HADM_ID, CATEGORY, DESCRIPTION, CHARTDATE,
-  CHARTTIME, n_chars, TEXT`.
+**Cohort** = admissions matching ANY of (OR, not AND):
+- `ADMISSIONS.DEATHTIME IS NOT NULL` (898)
+- `ADMISSIONS.DISCHARGE_LOCATION ILIKE '%HOSPICE%'` (120)
+- `PATIENTS.DOD <= ADMISSIONS.DISCHTIME + INTERVAL 365 DAY` (2,565; 1,550 as sole reason).
+  Uses `PATIENTS.DOD` (hospital + SSN merged).
+- `DIAGNOSES_ICD.ICD9_CODE = 'V667'` (196)
 
-Candidate pool shape (for sampling design): Physician 54,213 · General 3,886 ·
-Discharge summary 2,649 · Social Work 1,039 · Consult 54. Physician = 88%.
-Notes/admission median 12 (p90 55, max 437). 351 patients have ≥2 admissions (max 24).
-Longest note 53,169 chars (discharge summary).
+Further rules:
+- Adults only: `date_sub('year', DOB, ADMITTIME) >= 18`.
+- Keep **all** qualifying admissions per patient. Patient overlap is handled at sampling.
+- **Restricted to admissions with ≥1 `'Nursing'` note** (`COALESCE(ISERROR, 0) = 0`). This is
+  only a **documentation-period marker**: `'Nursing'` and `'Nursing/other'` almost never co-occur
+  (87 of ~43.9k admissions), and Physician / Social Work / General / Consult notes exist almost
+  only in `'Nursing'` admissions. Nursing notes themselves are **not** candidates.
+- Output columns: `SUBJECT_ID, HADM_ID, ADMITTIME, died_in_hosp, hospice_dc, died_365d, v667`.
 
-### Stage 2 · sampling — done 2026-10-16
+**Candidate notes:**
+- **Categories kept** (exact literals; trailing spaces matter): `'Physician '`, `'General'`,
+  `'Social Work'`, `'Consult'`, `'Discharge summary'`.
+- Excluded on purpose: `'Nursing'`, `'Case Management '` (user decision 2026-10-15) and
+  `'Nursing/other'`.
+- Drop empty notes. Remove **exact** duplicate TEXT within an admission, keeping the lowest
+  `ROW_ID`. Near-duplicates are deferred.
+- Keep discharge-summary addenda (102), identified by the `DESCRIPTION` column.
+- Keep long notes whole with `n_chars`. Truncation / chunking is decided at the LLM step.
+- No chart-time filter. TEXT is stored unmodified.
+- Output columns: `ROW_ID, SUBJECT_ID, HADM_ID, CATEGORY, DESCRIPTION, CHARTDATE, CHARTTIME,
+  n_chars, TEXT`.
+- Pool shape:
+  - Physician 54,213 (88%) · General 3,886 · Discharge summary 2,649 · Social Work 1,039 ·
+    Consult 54.
+  - Notes per admission: median 12 (p90 55, max 437).
+  - 351 patients have ≥2 admissions (max 24).
+  - Longest note 53,169 chars (a discharge summary).
 
-Strata done 2026-10-16 (see "Strata" above):
-- Cue list finalized in `src/sampling/cues.py` (19 cues). Bare `code status` / `full code` /
-  `DNR` / `DNI` are probe-only (template headings: 81% / 56% / 22% / 14% of notes). HCP counts only
-  after a talk verb (bare HCP mostly names the proxy). Counts: `src/sampling/cue_frequency.py` →
-  `reports/cue_frequency.json`.
-- `src/sampling/strata.py` → `data/derived/strata.parquet` (`ROW_ID, SUBJECT_ID, HADM_ID,
-  CATEGORY, n_chars, stratum, cues`; no text). **cues_present 15,082 (24.4%) / cues_missing
-  46,759** of 61,841. Present by category: Physician 12,620 · DS 1,116 · General 854 · SW 486 ·
-  Consult 6. cues_present spans 1,634 adm / 1,491 patients.
-- Stratum ≠ label: it only steers sampling; it's hidden during labeling and kept for analysis.
-- `src/sampling/draw.py` run 2026-10-16 (seed 20261016) → `data/derived/test_sample.parquet` (50)
-  and `dev_sample.parquet` (30). cues_present quotas: test Phys 25 / DS 4 / Gen 3 / SW 3, dev
-  15 / 2 / 2 / 2 (Consult skipped); cues_missing simple random (test drew Phys 12 / Gen 3, dev
-  Phys 9). 1 note per patient across test+dev; test drawn first; no length filter.
-  Columns: `ROW_ID, SUBJECT_ID, HADM_ID, CATEGORY, stratum, n_chars, label_order`. **No sampling
-  weights** (user decision 2026-10-16): all metrics are reported unweighted on the sample, with
-  per-stratum breakdowns. Pool-level prevalence comes from Stage 6 silver labels, not from
-  re-weighting test. Refuses to overwrite: **test is frozen.**
-- `tests/test_eval_independence.py` enforces that `src/eval/` never imports `src/sampling/`.
+### Stage 2 · Sampling — done (frozen)
 
-### Stage 3 · labeling tool — built 2026-10-16
+**Cue list** (`src/sampling/cues.py`, 19 cues, case-insensitive, negation ignored):
+- **Discussion:** family meeting · goals of care / GOC · discussed code status / DNR / DNI /
+  prognosis / goals · end of life · quality of life
+- **Transitions:** comfort care / measures / CMO · hospice · palliative · withdraw(al of)
+  care / support · redirect(ion of) care
+- **Surrogates and documents:**
+  - HCP / health care proxy, **only after a talk verb** (spoke with, updated, called...).
+    Bare HCP mostly just names the proxy.
+  - advance directive · MOLST / POLST
+- **Direction-neutral value language (required):** important to him/her/them · matters most ·
+  hopes to · wants to be able to · would not want · wishes
+- **Not cues (template headings, measured only):** bare `code status` (81% of notes), `full code`
+  (56%), `DNR` (22%), `DNI` (14%). Add new phrases only with user approval, after measuring them
+  with `src/sampling/cue_frequency.py` (→ `reports/cue_frequency.json`).
 
-- `src/labeling/assign.py` → `data/assignments/test_physician.parquet` (50: Phys 37 · Gen 6 ·
-  DS 4 · SW 3) and `dev_A`…`dev_E` (6 each). Columns `ROW_ID, CATEGORY, n_chars, label_order`
-  (stratum hidden). Exported to the GOC-labeler repo.
-- `src/labeling/app.py` (Streamlit): one-time NOTEEVENTS conversion from the labeler's own
-  download; checks every ROW_ID exists with matching `n_chars`; one question,
-  `goc_present` yes / no / unsure; auto-timed; append-only
-  JSONL `data/labels/<assignment>_<INITIALS>.jsonl`. Schema: `src/labeling/schema.py`.
-- `src/labeling/collect.py [LABELS_DIR]` validates returned files and reports coverage. Member
-  guide: `docs/labeling.md`.
-- **Labeling kit repo** (separate private GitHub repo; physician + members, decided 2026-10-16):
-  `python -m src.labeling.export_kit <clone>` copies app code, README, `.gitignore`, ID-only
-  `assignments/*.csv` (test + dev) and a `.labeling-kit` marker. This repo stays the source of
-  truth for the code; never edit it in the kit. Labelers push only their own
-  `labels/<assignment>_<INITIALS>.jsonl`. **Test labels are visible to everyone with kit access:**
-  whoever tunes prompts must not open `labels/test_physician_*` until prompts are frozen.
+**Strata** (`src/sampling/strata.py` → `data/derived/strata.parquet`, no text):
+- cues_present **15,082 (24.4%)** / cues_missing **46,759**.
+- cues_present by category: Physician 12,620 · Discharge summary 1,116 · General 854 ·
+  Social Work 486 · Consult 6. That's 1,634 admissions / 1,491 patients.
 
-**NEXT:** send assignments; while labeling runs, design the LLM step (`src/llm/`). Present
-design choices first.
+**Draw** (`src/sampling/draw.py`, seed **20261016**) → `data/derived/test_sample.parquet` (50) and
+`dev_sample.parquet` (30):
 
-### Open items to raise later
-- LLM step: Ollama `num_ctx` must be set explicitly (silent truncation); long-note handling.
-- Hardware: RTX 3070, 8 GB VRAM → models ≤ ~8B at Q4. Ollama 0.35.1 installed (has `gemma2:2b`,
-  `llama3`). vLLM would need WSL. Full-pool silver labeling ≈ days per config; consider subsampling.
-- Git: Stage 1 committed and pushed to `origin/main` (github.com/dennisdang5/GOC-pilot, **private**
-  — keep it private; `reports/` holds exact MIMIC aggregate counts, some < 10). Ask before committing.
+| | Physician | Discharge summary | General | Social Work | cues_missing (simple random) |
+|---|---|---|---|---|---|
+| Test cues_present quota | 25 | 4 | 3 | 3 | 15 (drew Phys 12 · Gen 3) |
+| Dev cues_present quota | 15 | 2 | 2 | 2 | 9 (drew Phys 9) |
+
+- Consult is skipped (too rare).
+- At most **1 note per patient across test + dev**. Test is drawn first, then its patients are
+  removed before dev.
+- No length filter.
+- Columns: `ROW_ID, SUBJECT_ID, HADM_ID, CATEGORY, stratum, n_chars, label_order`.
+- `draw.py` refuses to overwrite existing samples.
+
+### Stage 3 · Labeling — tool built and shipped, labeling in progress
+
+- **Assignments** (`src/labeling/assign.py` → `data/assignments/`):
+  - `test_physician` (50: Phys 37 · Gen 6 · DS 4 · SW 3) and `dev_A` … `dev_E` (6 each).
+  - Columns `ROW_ID, CATEGORY, n_chars, label_order`. Stratum and cues are dropped.
+- **App** (`src/labeling/app.py`, Streamlit, localhost):
+  - On first run, converts the labeler's own NOTEEVENTS download.
+  - Checks every ROW_ID exists with matching `n_chars`; mismatches block labeling.
+  - One yes / no / unsure question per note, auto-timed.
+  - Labelers can go back and change answers: the sidebar shows saved answers, and unsaved
+    changes are flagged.
+  - Writes append-only `<assignment>_<INITIALS>.jsonl`.
+- **Collect** (`src/labeling/collect.py [LABELS_DIR]`): validates returned files and reports
+  coverage.
+- **Member guide:** `docs/labeling.md`.
+- **Labeling repo:** github.com/dennisdang5/GOC-labeler, **private**, cloned at `../GOC-labeler`.
+  - `python -m src.labeling.export_kit ../GOC-labeler` copies the app, README (from
+    `docs/labeling.md`), `.gitignore`, requirements, ID-only `assignments/*.csv` and a
+    `.labeling-kit` marker. With the marker present, the app uses `assignments/` and `labels/`
+    at the repo root.
+  - **This repo is the source of truth.** Never edit code in the labeling repo; re-export and push
+    instead. The export never touches `labels/`.
+  - Labelers push only their own `labels/<assignment>_<INITIALS>.jsonl`.
+  - To collect: `git pull` there, then `python -m src.labeling.collect ../GOC-labeler/labels`.
 
 ---
 
-## Repo layout
+## 6. Status and next steps (2026-10-16)
 
-See `ARCHITECTURE.md` for the pipeline and data contracts.
+**Now:**
+- Add the physician and members as collaborators on GOC-labeler, tell each their assignment, and
+  collect labels as they come in.
 
+**Next:** design the LLM step (`src/llm/`) while labeling runs. Present design choices first.
+
+**Open items for the LLM step:**
+- Ollama `num_ctx` must be set explicitly (otherwise silent truncation). Decide long-note handling.
+- Hardware: RTX 3070, 8 GB VRAM, so models ≤ ~8B at Q4. Ollama 0.35.1 installed (has `gemma2:2b`,
+  `llama3`). vLLM would need WSL.
+- Models: 3–4 local open-weight models across families/sizes. Strategies: zero-shot and few-shot.
+  Structured JSON output validated with pydantic.
+- Full-pool silver labeling ≈ days per config; consider subsampling.
+
+**Git:** github.com/dennisdang5/GOC-pilot is **private**. Keep it private: `reports/` holds exact
+MIMIC aggregate counts, some < 10.
+
+---
+
+## 7. Reference
+
+### Repo layout
 ```
 data/                 # GITIGNORED — never read by Claude
-  raw/
-    noteevents/       # ← NOTEEVENTS csv here
-    admissions/       # ← ADMISSIONS csv here
-    patients/         # ← PATIENTS csv here
-    diagnoses_icd/    # ← DIAGNOSES_ICD csv here
+  raw/<table>/        # MIMIC CSVs: noteevents, admissions, patients, diagnoses_icd
   parquet/            # one-time Parquet conversion, queried directly by DuckDB
-  derived/            # cohort, candidates, strata, samples
-  labels/             # gold + dev labels
+  derived/            # cohort, candidates, strata, test/dev samples
+  assignments/        # ID-only labeling assignments
+  labels/             # returned label files
   predictions/        # model outputs
 src/
-  ingest/             # csv → parquet
+  ingest/             # csv → parquet, profile
   cohort/             # cohort + candidate notes
-  sampling/           # strata + samplers   ← never imported by eval
-  labeling/           # local CLI labeling tool, schemas
-  llm/                # prompts, runners, output validation
-  eval/               # metrics, κ, CIs, McNemar, error analysis
-  weak/               # silver labeling of unlabeled pool
-tests/fixtures/       # synthetic notes — safe to read
-docs/codebook.md
+  sampling/           # cues, strata, draw   ← never imported by eval
+  labeling/           # Streamlit app, schema, assign, collect, export_kit
+  llm/                # prompts, runners, output validation (not started)
+  eval/               # metrics, CIs, McNemar, error analysis (not started)
+  weak/               # silver labeling of the unlabeled pool (not started)
+tests/                # synthetic data only; fixtures/ for synthetic notes
+docs/labeling.md      # labeler guide (also the GOC-labeler README)
 reports/              # aggregate results only
+.streamlit/           # local-only app config
 ```
+See `ARCHITECTURE.md` for the pipeline diagram, module contracts and repos.
 
----
+### Environment
+- Python 3.12 in the PyCharm `.venv` (user approved 3.12 over 3.11). `uv` isn't installed;
+  install with `.venv/Scripts/python.exe -m pip`.
+- Run modules from the repo root as `python -m src.<module>.<file>`. Tests: `python -m pytest tests`.
+- Installed: `duckdb`, `pandas`, `pyarrow`, `pydantic`, `scikit-learn`, `statsmodels`,
+  `streamlit`, `pytest`, `nbstripout`.
+- Inference: `ollama` (vLLM needs WSL on Windows).
 
-## Environment
-
-Python 3.12 in the PyCharm `.venv` (user approved 3.12 over 3.11; `uv` not installed — packages
-installed with `.venv/Scripts/python.exe -m pip`). Run modules from the repo root as
-`python -m src.<module>.<file>`. `duckdb`, `pandas`, `pyarrow`, `pydantic`, `scikit-learn`,
-`statsmodels`, `pytest`, `nbstripout` installed. Inference: `ollama` (vLLM needs WSL on Windows).
-
----
-
-## MIMIC-III gotchas
-
-- MIMIC-III column names are UPPERCASE in the CSVs.
-- `NOTEEVENTS.TEXT` contains embedded newlines. Convert with proper CSV quoting; verify row count = 2,083,180.
-- DuckDB queries Parquet files directly (`FROM 'data/parquet/noteevents.parquet'`). No database server or `.duckdb` file.
-- Category strings vary in case/whitespace. Profile first, paste exact literals.
+### MIMIC-III gotchas
+- Column names are UPPERCASE in the CSVs.
+- `NOTEEVENTS.TEXT` contains embedded newlines. Convert with proper CSV quoting, and verify the
+  row count is 2,083,180.
+- DuckDB queries Parquet files directly (`FROM 'data/parquet/noteevents.parquet'`). There's no
+  database server and no `.duckdb` file.
+- Category strings vary in case and whitespace. Profile first, then paste exact literals.
 - ICD-9 codes have no decimal: V66.7 → `'V667'`.
-- Dates are shifted per patient. Intervals valid, absolute dates meaningless.
+- Dates are shifted per patient. Intervals are valid; absolute dates are meaningless.
 - Filter `COALESCE(ISERROR, 0) = 0`.
-- Neonates included. Age >89 appears as ~300 years; treat >200 as 90+.
-
----
-
-## Working style
-
-Concepts before code. Explain, confirm, then implement. Small verified steps, not large modules.
-When the data looks wrong, say so rather than coding around it.
+- Neonates are included. Age >89 appears as ~300 years; treat >200 as 90+.
