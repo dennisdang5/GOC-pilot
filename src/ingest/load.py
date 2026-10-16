@@ -22,9 +22,10 @@ EXPECTED_ROWS = {"noteevents": 2_083_180}
 MAX_LINE_SIZE = 64 * 1024 * 1024
 
 
-def convert(con: duckdb.DuckDBPyConnection, table: str) -> int:
-    src = (RAW / table).as_posix() + "/*.csv*"
-    dst = (PARQUET / f"{table}.parquet").as_posix()
+def convert(con: duckdb.DuckDBPyConnection, table: str,
+            raw: Path = RAW, parquet: Path = PARQUET) -> int:
+    src = (raw / table).as_posix() + "/*.csv*"
+    dst = (parquet / f"{table}.parquet").as_posix()
     con.execute(
         f"""
         COPY (

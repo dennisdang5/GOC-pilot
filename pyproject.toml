@@ -10,6 +10,7 @@ dependencies = [
     "pydantic>=2",
     "scikit-learn",
     "statsmodels",
+    "streamlit",
 ]
 
 [project.optional-dependencies]

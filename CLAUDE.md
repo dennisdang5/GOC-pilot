@@ -27,7 +27,10 @@ If a task seems to require reading real note text, stop and say so.
 
 **Also enforced:**
 - `data/` is gitignored. Notebook outputs stripped before commit (`nbstripout`).
-- Labeling happens locally. No Google Sheets, Airtable, or hosted labeling tools.
+- Labeling happens locally (`src/labeling/app.py`, Streamlit on localhost, telemetry off). No Google
+  Sheets, Airtable, or hosted labeling tools. Each labeler uses **their own** PhysioNet download
+  (PhysioNet FAQ: sharing within teams is not permitted). Only **ID-only** assignment files go out
+  and only **text-free** label files come back. Never build an export that packages note text.
 - All LLM inference uses **locally deployed open-weight models** (vLLM or Ollama).
 
 ---
@@ -55,8 +58,8 @@ keyword-baseline comparison, trade-off analysis. Do not build these unless asked
 
 | Set | n | Labeled by | Purpose |
 |---|---|---|---|
-| **Test** | 50 | Annotator + physician, independently, then adjudicated | All reported numbers. Touched **once**. |
-| **Dev** | ~30 | Single annotator | Prompt tuning and error inspection |
+| **Test** | 50 | Physician only (single expert, decided 2026-10-16) | All reported numbers. Touched **once**. |
+| **Dev** | 30 | 5 members × 6 notes, one labeler each | Prompt tuning and error inspection |
 | **Few-shot examples** | ~6 | Synthetic (hand-written) | In-prompt demonstrations |
 | **Unlabeled pool** | rest of candidates | — | Weak-supervision (silver) labeling |
 
@@ -101,7 +104,7 @@ social work, case management, chaplaincy.
   "participants": ["patient|family|surrogate|clinician_only|unclear"],
   "content_relevant": "yes|no|unclear",
   "goc_present": "yes|no|unclear",
-  "evidence_span": "verbatim, required if goc_present=yes",
+  "evidence_start": 0, "evidence_end": 0,  // char positions in unmodified TEXT; required if yes
   "negative_reason": "order_only|consult_only|planned_only|clinician_only|no_serious_illness_context|no_goc_content|null",
   "goc_type": "family_meeting|code_status|prognosis_disclosure|hospice_transition|acp_general|other|null",
   "secondhand": false,
@@ -139,7 +142,8 @@ candidates.
 
 **Limitations to report:** silver-label prevalence estimates (Stage 6) describe `'Nursing'`-period
 admissions only, not all of MIMIC-III. Gold and silver results cover the 5 kept note types only.
-GOC documented only in nursing or case-management notes counts as out of scope.
+GOC documented only in nursing or case-management notes counts as out of scope. The test gold standard
+is a single physician's labels (no reliability estimate).
 
 **Strata (decided 2026-10-16):** two strata, **cues present / cues missing**, from one combined
 screening phrase list (`src/sampling/cues.py`). A note matching any phrase is cues-present. The
@@ -159,8 +163,9 @@ Strategies: zero-shot and few-shot. Structured JSON output validated with pydant
   `src/eval/` must not import it. A test enforces this.
 - **Test set is frozen.** No scoring, no error inspection, no peeking until prompts are frozen on dev.
 - Annotators label blind (no model or keyword output visible), notes in randomized order.
-- Report Cohen's κ **before** adjudication; keep both raw and adjudicated labels.
-- `unclear` labels are collapsed to `no` for κ and all metrics (primary analysis). Report a
+- Test gold standard is a single physician: no human κ, no adjudication (decided 2026-10-16).
+  Report this as a limitation (no measure of gold-standard reliability).
+- `unclear` labels are collapsed to `no` for all metrics (primary analysis). Report a
   sensitivity analysis excluding `unclear`. Apply the same rule to humans and models.
 - Every LLM `evidence_span` is checked for exact (whitespace-normalized) presence in the source note.
   Report the verification rate per model.
@@ -168,7 +173,7 @@ Strategies: zero-shot and few-shot. Structured JSON output validated with pydant
 
 ---
 
-## Current status — WHERE WE LEFT OFF (2026-10-06)
+## Current status — WHERE WE LEFT OFF (2026-10-16)
 
 **Process rule from the user:** every design choice is brought to the user with options +
 trade-offs + a recommendation, and approved **before** code is written. Defaults that are purely
@@ -224,7 +229,20 @@ Strata done 2026-10-16 (see "Strata" above):
   re-weighting test. Refuses to overwrite: **test is frozen.**
 - `tests/test_eval_independence.py` enforces that `src/eval/` never imports `src/sampling/`.
 
-**NEXT:** local labeling CLI (`src/labeling/`). Present design choices first.
+### Stage 3 · labeling tool — built 2026-10-16
+
+- `src/labeling/assign.py` → `data/assignments/test_physician.parquet` (50: Phys 37 · Gen 6 ·
+  DS 4 · SW 3) and `dev_A`…`dev_E` (6 each). Columns `ROW_ID, CATEGORY, n_chars, label_order`
+  (stratum hidden). Coordinator sends each person their file directly.
+- `src/labeling/app.py` (Streamlit): one-time NOTEEVENTS conversion from the labeler's own
+  download; checks every ROW_ID exists with matching `n_chars`; three tests → derived
+  `goc_present`; pasted evidence verified and stored as positions; auto-timed; append-only
+  JSONL `data/labels/<assignment>_<INITIALS>.jsonl`. Schema: `src/labeling/schema.py`.
+- `src/labeling/collect.py` validates returned files and reports coverage. Member guide:
+  `docs/labeling.md`.
+
+**NEXT:** send assignments; while labeling runs, design the LLM step (`src/llm/`). Present
+design choices first.
 
 ### Open items to raise later
 - LLM step: Ollama `num_ctx` must be set explicitly (silent truncation); long-note handling.
