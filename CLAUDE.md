@@ -256,11 +256,12 @@ Further rules:
 
 ## 6. Status and next steps (2026-10-16)
 
-**Now:**
-- Add the physician and members as collaborators on GOC-labeler, tell each their assignment, and
-  collect labels as they come in.
+**Labeling has begun.** Collaborators are added on GOC-labeler and assignments handed out.
+Collect labels as they come in (`git pull` in `../GOC-labeler`, then `collect`).
 
-**Next:** design the LLM step (`src/llm/`) while labeling runs. Present design choices first.
+**▶ Resume here: LLM step design (`src/llm/`).** Not started: no design choices made, no code
+written. Begin by presenting the design choices below (options + trade-offs + recommendation) and
+get approval before writing code.
 
 **Open items for the LLM step:**
 - Ollama `num_ctx` must be set explicitly (otherwise silent truncation). Decide long-note handling.
