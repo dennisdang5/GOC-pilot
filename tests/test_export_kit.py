@@ -34,11 +34,8 @@ def test_kit_export_and_label(tmp_path):
     at.text_input(key="annotator").input("ab").run()
     at.selectbox(key="assignment").set_value("dev_Z").run()
     at.radio(key="goc_7").set_value("yes").run()
-    at.text_area(key="evidence_7").input("he would not want intubation.")
-    at.run()
     at.button(key="save_7").click().run()
     assert not at.exception
 
     rec = json.loads((kit / "labels" / "dev_Z_AB.jsonl").read_text().splitlines()[-1])
     assert rec["goc_present"] == "yes"
-    assert TEXT[rec["evidence_start"]:rec["evidence_end"]] == "he would not want intubation."

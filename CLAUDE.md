@@ -82,19 +82,21 @@ beats another unless McNemar's test supports it; otherwise describe them as comp
 > and the **patient and/or family or surrogate**, in which **goals, values, prognosis, or
 > preferences for future treatment in serious illness** were discussed.
 
-Labelers judge `goc_present` **directly** against this definition (decided 2026-10-16; replaced
-the earlier three-separate-tests form to cut labeling effort). "Clinician" includes physicians,
+Labelers answer `goc_present` **directly** against this definition: yes / no / unsure (stored as
+`unclear`), with no evidence, reason or confidence (decided 2026-10-16, to cut labeling effort;
+replaced the three-tests form). No human evidence spans exist, so gold labels can't be audited
+from the label file alone. "Clinician" includes physicians,
 nursing, social work, case management, chaplaincy.
 
 ### Explicit negatives
 
 | Case | Label |
 |---|---|
-| `Code status: DNR` with no documented discussion | no — `order_only` |
-| "Palliative care consulted" | no — `consult_only` |
-| "Will hold family meeting tomorrow" | no — `planned_only` |
-| Clinicians discussing among themselves | no — `clinician_only` |
-| "Per outpatient oncologist, goals previously discussed" | **yes**, `secondhand: true` |
+| `Code status: DNR` with no documented discussion | no |
+| "Palliative care consulted" | no |
+| "Will hold family meeting tomorrow" | no |
+| Clinicians discussing among themselves | no |
+| "Per outpatient oncologist, goals previously discussed" | **yes** |
 
 ### Label schema — every labeled note
 
@@ -102,10 +104,7 @@ nursing, social work, case management, chaplaincy.
 {
   "row_id": 0,
   "assignment": "test_physician|dev_A..dev_E",
-  "goc_present": "yes|no|unclear",
-  "evidence_start": 0, "evidence_end": 0,  // char positions in unmodified TEXT; required if yes, else null
-  "negative_reason": "order_only|consult_only|planned_only|clinician_only|no_serious_illness_context|no_goc_content|null",  // optional, only if no
-  "secondhand": false,  // only if yes
+  "goc_present": "yes|no|unclear",  // shown to labelers as yes / no / unsure
   "annotator": "initials",
   "minutes_spent": 0,  // auto-timed
   "labeled_at": "ISO-8601 UTC"
@@ -230,10 +229,10 @@ Strata done 2026-10-16 (see "Strata" above):
 
 - `src/labeling/assign.py` → `data/assignments/test_physician.parquet` (50: Phys 37 · Gen 6 ·
   DS 4 · SW 3) and `dev_A`…`dev_E` (6 each). Columns `ROW_ID, CATEGORY, n_chars, label_order`
-  (stratum hidden). Coordinator sends each person their file directly.
+  (stratum hidden). Exported to the GOC-labeler repo.
 - `src/labeling/app.py` (Streamlit): one-time NOTEEVENTS conversion from the labeler's own
-  download; checks every ROW_ID exists with matching `n_chars`; direct yes/no/unclear
-  `goc_present` (evidence required if yes, optional reason if no; no confidence); pasted evidence verified and stored as positions; auto-timed; append-only
+  download; checks every ROW_ID exists with matching `n_chars`; one question,
+  `goc_present` yes / no / unsure; auto-timed; append-only
   JSONL `data/labels/<assignment>_<INITIALS>.jsonl`. Schema: `src/labeling/schema.py`.
 - `src/labeling/collect.py [LABELS_DIR]` validates returned files and reports coverage. Member
   guide: `docs/labeling.md`.

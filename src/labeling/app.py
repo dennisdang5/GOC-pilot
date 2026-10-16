@@ -5,7 +5,7 @@ Run from the repo root:  streamlit run src/labeling/app.py
 Reads an ID-only assignment file from data/assignments/, pulls the note text from YOUR OWN
 local MIMIC-III copy (data/parquet/noteevents.parquet, built from data/raw/noteevents/ on first
 run), and appends labels to data/labels/<assignment>_<initials>.jsonl. Label files hold IDs,
-choices and evidence character positions only -- no note text -- so they can be sent back.
+the yes/no/unsure choice and timing only -- no note text -- so they can be shared.
 
 Set GOC_DATA_DIR to point at a different data folder (used by the tests with synthetic notes).
 """
@@ -28,7 +28,6 @@ import streamlit as st  # noqa: E402
 from pydantic import ValidationError  # noqa: E402
 
 from src.ingest.load import EXPECTED_ROWS, convert  # noqa: E402
-from src.labeling.derive import find_evidence  # noqa: E402
 from src.labeling.schema import GOCLabel  # noqa: E402
 
 # Paths: GOC_DATA_DIR (tests) > labeling-kit repo (marker file; assignments/ and labels/ are
@@ -44,19 +43,11 @@ else:
     ASSIGN_DIR, LABEL_DIR = DATA / "assignments", DATA / "labels"
 NOTES = DATA / "parquet" / "noteevents.parquet"
 
-YNU = ["yes", "no", "unclear"]
+YNU = ["yes", "no", "unclear"]  # "unclear" is shown as "unsure"
 DEFINITION = ("Yes if the note records an interaction between clinician(s) and the patient "
               "and/or family or surrogate in which goals, values, prognosis, or preferences for "
-              "future treatment in serious illness were discussed.")
-NEG_LABELS = {
-    "order_only": "Order only (e.g. DNR, no discussion documented)",
-    "consult_only": "Consult only (e.g. 'palliative care consulted')",
-    "planned_only": "Planned only (e.g. 'will hold family meeting')",
-    "clinician_only": "Clinicians discussing among themselves",
-    "no_serious_illness_context": "No serious-illness context",
-    "no_goc_content": "No GOC content",
-}
-NEG_REASONS = [None, *NEG_LABELS]
+              "future treatment in serious illness were discussed. No if it's only an order "
+              "(e.g. DNR), a consult, a planned meeting, or clinicians talking among themselves.")
 
 st.set_page_config(page_title="GOC labeling", layout="wide")
 
@@ -121,15 +112,9 @@ def pick(options: list, value) -> int | None:
     return options.index(value) if value in options else None
 
 
-def note_html(text: str, span: tuple[int, int] | None) -> str:
-    if span:
-        s, e = span
-        body = (html.escape(text[:s]) + "<mark>" + html.escape(text[s:e]) + "</mark>"
-                + html.escape(text[e:]))
-    else:
-        body = html.escape(text)
+def note_html(text: str) -> str:
     return ("<div style='height:70vh;overflow-y:auto;white-space:pre-wrap;font-family:monospace;"
-            f"font-size:0.85rem;border:1px solid #8884;padding:0.75rem'>{body}</div>")
+            f"font-size:0.85rem;border:1px solid #8884;padding:0.75rem'>{html.escape(text)}</div>")
 
 
 def main() -> None:
@@ -196,44 +181,20 @@ def main() -> None:
         st.caption(f"ROW_ID {row_id} · {row['CATEGORY'].strip()} · {len(text):,} chars"
                    + (" · already labeled (saving replaces it)" if prev else ""))
         goc = st.radio("GOC present?", YNU, index=pick(YNU, prev.get("goc_present")),
+                       format_func=lambda x: "unsure" if x == "unclear" else x,
                        horizontal=True, key=k("goc"))
         st.caption(DEFINITION)
-
-        span, pasted, neg, secondhand = None, "", None, False
-        if goc == "yes":
-            prev_span = (prev["evidence_start"], prev["evidence_end"])                 if prev.get("evidence_start") is not None else None
-            pasted = st.text_area("Evidence (required): paste the exact sentence(s) from the note",
-                                  value=text[prev_span[0]:prev_span[1]] if prev_span else "",
-                                  key=k("evidence"), height=100)
-            span = find_evidence(text, pasted) if pasted.strip() else None
-            if pasted.strip():
-                if span:
-                    st.success("Evidence found in the note (highlighted).")
-                else:
-                    st.error("Not found in the note. Paste it exactly as written.")
-            secondhand = st.checkbox("Secondhand (a reported discussion, e.g. \"per oncologist, "
-                                     "goals were discussed\")",
-                                     value=prev.get("secondhand", False), key=k("secondhand"))
-        elif goc == "no":
-            neg = st.selectbox("Reason (optional)", NEG_REASONS,
-                               index=NEG_REASONS.index(prev.get("negative_reason")),
-                               format_func=lambda x: "—" if x is None else NEG_LABELS[x],
-                               key=k("neg"))
 
         if st.button("Save label", type="primary", key=k("save")):
             elapsed = (time.time() - st.session_state[timer_key]) / 60
             record = {
                 "row_id": row_id, "assignment": assignment, "goc_present": goc,
-                "evidence_start": span[0] if span else None,
-                "evidence_end": span[1] if span else None,
-                "negative_reason": neg, "secondhand": secondhand, "annotator": annotator,
+                "annotator": annotator,
                 "minutes_spent": round(prev.get("minutes_spent", 0) + elapsed, 1),
                 "labeled_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             }
             if goc is None:
-                st.error("Choose yes, no or unclear first.")
-            elif pasted.strip() and not span:
-                st.error("Fix the evidence first: it isn't in the note.")
+                st.error("Choose yes, no or unsure first.")
             else:
                 try:
                     label = GOCLabel.model_validate(record)
@@ -250,7 +211,7 @@ def main() -> None:
                     st.rerun()
 
     with left:
-        st.markdown(note_html(text, span), unsafe_allow_html=True)
+        st.markdown(note_html(text), unsafe_allow_html=True)
 
 
 main()

@@ -18,22 +18,20 @@ within teams, even between credentialed users.
 ## Labeling
 - Enter your initials in the sidebar and pick your assignment. Notes appear in a fixed random
   order.
-- Answer **GOC present? yes / no / unclear**. **Yes** means the note records an
-  **interaction** between clinician(s) and the **patient and/or family or surrogate**, in which
-  **goals, values, prognosis, or preferences for future treatment in serious illness** were
-  discussed. "Clinician" includes nursing, social work, case management and chaplaincy.
-- If **yes**: **paste the exact sentence(s)** from the note as evidence (required; it's
-  highlighted when found). Tick *Secondhand* for reported discussions ("per oncologist, goals were
-  discussed"). These still count as **yes**.
-- If **no**: optionally pick a reason. These cases are all **no**:
-  - DNR / code status order with no discussion documented → *Order only*
-  - "Palliative care consulted" → *Consult only*
-  - "Will hold family meeting tomorrow" → *Planned only*
-  - Clinicians discussing among themselves → *Clinicians discussing among themselves*
-- Use **unclear** only when you genuinely can't decide.
-- Click **Save label**. Time spent is recorded automatically. You can go back and re-save; the
-  latest save wins.
+- Answer **GOC present? yes / no / unsure**, then click **Save label**. That's all.
+- **Yes** means the note records an **interaction** between clinician(s) and the **patient and/or
+  family or surrogate**, in which **goals, values, prognosis, or preferences for future treatment
+  in serious illness** were discussed. "Clinician" includes nursing, social work, case management
+  and chaplaincy. A reported discussion counts as **yes** ("per oncologist, goals were
+  discussed").
+- These are all **no**:
+  - DNR / code status order with no discussion documented
+  - "Palliative care consulted"
+  - "Will hold family meeting tomorrow" (planned, not yet happened)
+  - Clinicians discussing among themselves
+- Use **unsure** only when you genuinely can't decide.
+- Time spent is recorded automatically. You can go back and re-save; the latest save wins.
 
 ## Sending labels back
 When you're done, share `data/labels/<assignment>_<INITIALS>.jsonl` with the team. It holds
-IDs, your choices and evidence *positions* (character offsets), with no note text.
+IDs and your yes/no/unsure answers, with no note text.

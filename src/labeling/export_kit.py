@@ -23,7 +23,6 @@ CODE = [
     "src/ingest/load.py",
     "src/labeling/__init__.py",
     "src/labeling/app.py",
-    "src/labeling/derive.py",
     "src/labeling/schema.py",
     ".streamlit/config.toml",
 ]

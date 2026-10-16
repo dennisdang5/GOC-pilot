@@ -1,63 +1,30 @@
-"""Labeling helpers, schema rules and assignment split (synthetic data only)."""
+"""Label schema and assignment split (synthetic data only)."""
 
 import pandas as pd
 import pytest
 from pydantic import ValidationError
 
 from src.labeling.assign import split_dev
-from src.labeling.derive import find_evidence
 from src.labeling.schema import GOCLabel
 
 
-NOTE = "Pt intubated.\n\nMet with  wife\nand daughter;\tthey wish to\nfocus on comfort."
-
-
-@pytest.mark.parametrize("pasted", [
-    "Met with wife and daughter; they wish to focus on comfort.",
-    "  Met with  wife\nand daughter;\tthey wish to\nfocus on comfort.  ",
-])
-def test_find_evidence_whitespace_normalized(pasted):
-    start, end = find_evidence(NOTE, pasted)
-    assert NOTE[start:end].startswith("Met with")
-    assert NOTE[start:end].endswith("comfort.")
-
-
-@pytest.mark.parametrize("pasted", ["met with wife", "focus on hospice", "", "   "])
-def test_find_evidence_not_found(pasted):
-    assert find_evidence(NOTE, pasted) is None
-
-
 def base(**kw):
-    rec = dict(row_id=1, assignment="dev_A", goc_present="yes", evidence_start=0,
-               evidence_end=10, annotator="TT", minutes_spent=2.5,
-               labeled_at="2026-10-16T00:00:00+00:00")
+    rec = dict(row_id=1, assignment="dev_A", goc_present="yes", annotator="TT",
+               minutes_spent=2.5, labeled_at="2026-10-16T00:00:00+00:00")
     rec.update(kw)
     return rec
 
 
-NO = dict(goc_present="no", evidence_start=None, evidence_end=None)
+@pytest.mark.parametrize("goc", ["yes", "no", "unclear"])
+def test_valid_labels(goc):
+    GOCLabel.model_validate(base(goc_present=goc))
 
 
 @pytest.mark.parametrize("changes", [
-    {},
-    dict(secondhand=True),
-    NO,
-    dict(NO, negative_reason="order_only"),
-    dict(goc_present="unclear", evidence_start=None, evidence_end=None),
-])
-def test_valid_labels(changes):
-    GOCLabel.model_validate(base(**changes))
-
-
-@pytest.mark.parametrize("changes", [
-    dict(evidence_start=None, evidence_end=None),              # yes needs evidence
-    dict(evidence_end=None),                                   # positions set together
-    dict(evidence_start=10, evidence_end=5),
-    dict(negative_reason="consult_only"),                      # reason only for no
-    dict(goc_present="no"),                                    # no can't carry evidence
-    dict(NO, secondhand=True),                                 # secondhand only for yes
+    dict(goc_present="unsure"),       # stored as "unclear"
     dict(goc_present="maybe"),
     dict(annotator="T1"),
+    dict(minutes_spent=-1),
 ])
 def test_invalid_labels(changes):
     with pytest.raises(ValidationError):
