@@ -130,11 +130,15 @@ almost only in `'Nursing'` admissions. The restriction keeps one documentation p
 full note mix. Provisional size: 2,609 admissions, 148,438 candidate notes.
 
 **Note categories kept** (exact literals from `reports/profile.json`; trailing spaces matter):
-`'Physician '`, `'General'`, `'Social Work'`, `'Case Management '`, `'Consult'`,
-`'Discharge summary'`, `'Nursing'`. `'Nursing/other'` is excluded on purpose (see above).
+`'Physician '`, `'General'`, `'Social Work'`, `'Consult'`, `'Discharge summary'`.
+`'Nursing/other'` is excluded on purpose (see above). `'Nursing'` and `'Case Management '` were
+dropped from the candidate pool on 2026-10-15 (user decision). The cohort rule requiring ≥1
+`'Nursing'` note **stays**: it only marks the documentation period, and nursing notes are never
+candidates.
 
-**Limitation to report:** silver-label prevalence estimates (Stage 6) describe `'Nursing'`-period
-admissions only, not all of MIMIC-III.
+**Limitations to report:** silver-label prevalence estimates (Stage 6) describe `'Nursing'`-period
+admissions only, not all of MIMIC-III. Gold and silver results cover the 5 kept note types only.
+GOC documented only in nursing or case-management notes counts as out of scope.
 
 **Strata:** strong-cue / weak-cue / background via screening regex. The weak-cue regex must include
 direction-neutral value language (`important to (him|her)`, `matters most`, `hopes to`,
@@ -174,7 +178,7 @@ mechanical may be taken, but say so.
 | 2. CSV → Parquet | `src/ingest/load.py` | `data/parquet/<table>.parquet` | noteevents **2,083,180** ✅; admissions 58,976; patients 46,520; diagnoses_icd 651,047 |
 | 3. Profile | `src/ingest/profile.py` | `reports/profile.json` | exact category / discharge-location literals; V667 = 1,020 adm; DEATHTIME = 5,854; ISERROR = 1 for 886 notes, NULL otherwise (no 0s) |
 | 4. Cohort | `src/cohort/build.py` | `data/derived/cohort.parquet` | 14,379 any-reason → **2,609** with `'Nursing'` note → 2,609 adult; 2,083 patients |
-| 5. Candidates | `src/cohort/candidates.py` | `data/derived/candidates.parquet` | 148,438 → −0 empty → −11,469 exact dups → **136,969 notes**, 2,609 adm |
+| 5. Candidates | `src/cohort/candidates.py` | `data/derived/candidates.parquet` | (re-run 2026-10-15, 5 categories) 64,809 → −0 empty → −2,968 exact dups → **61,841 notes**, 2,607 adm (2 cohort adm have no candidates), 2,081 patients |
 
 Approved choices (beyond "Decisions already made"):
 - **Cohort:** 365-day rule uses `PATIENTS.DOD` (hosp + SSN merged); keep **all** qualifying
@@ -189,10 +193,10 @@ Approved choices (beyond "Decisions already made"):
   methods). Output columns: `ROW_ID, SUBJECT_ID, HADM_ID, CATEGORY, DESCRIPTION, CHARTDATE,
   CHARTTIME, n_chars, TEXT`.
 
-Candidate pool shape (for sampling design): Nursing 74,678 · Physician 54,213 · General 3,882 ·
-Discharge summary 2,649 · Social Work 1,039 · Case Management 454 · Consult 54. Nursing +
-Physician = 95%. Notes/admission median 28 (p90 124, max 843). 351 patients have ≥2 admissions
-(max 24). Longest note 53,169 chars (discharge summary).
+Candidate pool shape (for sampling design): Physician 54,213 · General 3,886 ·
+Discharge summary 2,649 · Social Work 1,039 · Consult 54. Physician = 88%.
+Notes/admission median 12 (p90 55, max 437). 351 patients have ≥2 admissions (max 24).
+Longest note 53,169 chars (discharge summary).
 
 ### NEXT — `src/sampling/strata.py` (not started; present design choices first)
 

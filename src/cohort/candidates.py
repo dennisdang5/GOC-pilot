@@ -18,14 +18,14 @@ COHORT = (ROOT / "data" / "derived" / "cohort.parquet").as_posix()
 OUT = ROOT / "data" / "derived" / "candidates.parquet"
 
 # Exact literals from reports/profile.json -- trailing spaces matter.
+# 'Nursing' and 'Case Management ' excluded from candidates (decided 2026-10-15); the cohort
+# still requires a 'Nursing' note as a documentation-period marker (src/cohort/build.py).
 KEPT_CATEGORIES = [
     "Physician ",
     "General",
     "Social Work",
-    "Case Management ",
     "Consult",
     "Discharge summary",
-    "Nursing",
 ]
 
 
