@@ -97,7 +97,6 @@ Every stage reads from and writes to `data/`, which is gitignored. No stage prin
   "assignment": "dev_A",
   "goc_present": "yes | no | unclear",
   "annotator": "AB",
-  "minutes_spent": 2.5,
   "labeled_at": "2026-10-16T00:00:00+00:00"
 }
 ```

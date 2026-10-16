@@ -112,7 +112,6 @@ with required evidence, to cut labeling effort.
   "assignment": "test_physician | dev_A .. dev_E",
   "goc_present": "yes | no | unclear",
   "annotator": "initials",
-  "minutes_spent": 0.0,
   "labeled_at": "ISO-8601 UTC"
 }
 ```
@@ -236,7 +235,7 @@ Further rules:
 - **App** (`src/labeling/app.py`, Streamlit, localhost):
   - On first run, converts the labeler's own NOTEEVENTS download.
   - Checks every ROW_ID exists with matching `n_chars`; mismatches block labeling.
-  - One yes / no / unsure question per note, auto-timed.
+  - One yes / no / unsure question per note (no timing).
   - Labelers can go back and change answers: the sidebar shows saved answers, and unsaved
     changes are flagged.
   - Writes append-only `<assignment>_<INITIALS>.jsonl`.

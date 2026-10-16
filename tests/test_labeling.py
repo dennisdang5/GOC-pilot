@@ -10,7 +10,7 @@ from src.labeling.schema import GOCLabel
 
 def base(**kw):
     rec = dict(row_id=1, assignment="dev_A", goc_present="yes", annotator="TT",
-               minutes_spent=2.5, labeled_at="2026-10-16T00:00:00+00:00")
+               labeled_at="2026-10-16T00:00:00+00:00")
     rec.update(kw)
     return rec
 
@@ -24,7 +24,7 @@ def test_valid_labels(goc):
     dict(goc_present="unsure"),       # stored as "unclear"
     dict(goc_present="maybe"),
     dict(annotator="T1"),
-    dict(minutes_spent=-1),
+    dict(row_id=None),
 ])
 def test_invalid_labels(changes):
     with pytest.raises(ValidationError):

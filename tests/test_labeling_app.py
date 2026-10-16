@@ -43,8 +43,7 @@ def test_label_two_notes(data_dir):
     lines = (data_dir / "labels" / "dev_Z_TT.jsonl").read_text().splitlines()
     recs = [json.loads(line) for line in lines]
     assert [(r["row_id"], r["goc_present"]) for r in recs] == [(11, "yes"), (12, "unclear")]
-    assert set(recs[0]) == {"row_id", "assignment", "goc_present", "annotator",
-                            "minutes_spent", "labeled_at"}
+    assert set(recs[0]) == {"row_id", "assignment", "goc_present", "annotator", "labeled_at"}
     assert not any(t in "".join(lines) for t in NOTES.values())
 
 
