@@ -1,6 +1,8 @@
 """Validate returned label files and check coverage against the assignments.
 
-Run from anywhere:  python -m src.labeling.collect
+Run from anywhere:  python -m src.labeling.collect [LABELS_DIR]
+
+LABELS_DIR defaults to data/labels/; pass the labeling-kit repo's labels/ folder after a git pull.
 
 Reads data/assignments/*.parquet and data/labels/*.jsonl. For each label file: schema-validates
 every line (latest record per ROW_ID wins) and reports labeled / missing / extra ROW_IDs.
@@ -41,10 +43,11 @@ def read_labels(path: Path) -> tuple[dict[int, GOCLabel], list[str]]:
 
 
 def main() -> int:
+    label_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else LABEL_DIR
     assignments = {p.stem: set(pd.read_parquet(p)["ROW_ID"]) for p in ASSIGN_DIR.glob("*.parquet")}
-    label_files = sorted(LABEL_DIR.glob("*.jsonl"))
+    label_files = sorted(label_dir.glob("*.jsonl"))
     if not label_files:
-        print(f"collect: no label files in {LABEL_DIR.relative_to(ROOT).as_posix()}/")
+        print(f"collect: no label files in {label_dir.as_posix()}/")
         return 1
     covered: dict[str, set[int]] = {name: set() for name in assignments}
     ok = True

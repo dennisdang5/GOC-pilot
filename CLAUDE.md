@@ -238,8 +238,14 @@ Strata done 2026-10-16 (see "Strata" above):
   download; checks every ROW_ID exists with matching `n_chars`; three tests → derived
   `goc_present`; pasted evidence verified and stored as positions; auto-timed; append-only
   JSONL `data/labels/<assignment>_<INITIALS>.jsonl`. Schema: `src/labeling/schema.py`.
-- `src/labeling/collect.py` validates returned files and reports coverage. Member guide:
-  `docs/labeling.md`.
+- `src/labeling/collect.py [LABELS_DIR]` validates returned files and reports coverage. Member
+  guide: `docs/labeling.md`.
+- **Labeling kit repo** (separate private GitHub repo; physician + members, decided 2026-10-16):
+  `python -m src.labeling.export_kit <clone>` copies app code, README, `.gitignore`, ID-only
+  `assignments/*.csv` (test + dev) and a `.labeling-kit` marker. This repo stays the source of
+  truth for the code; never edit it in the kit. Labelers push only their own
+  `labels/<assignment>_<INITIALS>.jsonl`. **Test labels are visible to everyone with kit access:**
+  whoever tunes prompts must not open `labels/test_physician_*` until prompts are frozen.
 
 **NEXT:** send assignments; while labeling runs, design the LLM step (`src/llm/`). Present
 design choices first.

@@ -15,8 +15,6 @@ within teams, even between credentialed users.
 4. From the repo root, run `streamlit run src/labeling/app.py`. A browser tab opens on
    `localhost`. The first time, click **Convert NOTEEVENTS** (a few minutes, once).
 
-If the app says your NOTEEVENTS **doesn't match** the assignment, stop and tell the coordinator.
-
 ## Labeling
 - Enter your initials in the sidebar and pick your assignment. Notes appear in a fixed random
   order.
@@ -40,5 +38,5 @@ If the app says your NOTEEVENTS **doesn't match** the assignment, stop and tell 
   back and re-save; the latest save wins.
 
 ## Sending labels back
-When you're done, send `data/labels/<assignment>_<INITIALS>.jsonl` to the coordinator. It holds
+When you're done, share `data/labels/<assignment>_<INITIALS>.jsonl` with the team. It holds
 IDs, your choices and evidence *positions* (character offsets), with no note text.

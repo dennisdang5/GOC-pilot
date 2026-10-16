@@ -31,10 +31,18 @@ from src.ingest.load import EXPECTED_ROWS, convert  # noqa: E402
 from src.labeling.derive import derive_goc, find_evidence  # noqa: E402
 from src.labeling.schema import GOCLabel  # noqa: E402
 
-DATA = Path(os.environ.get("GOC_DATA_DIR", ROOT / "data"))
+# Paths: GOC_DATA_DIR (tests) > labeling-kit repo (marker file; assignments/ and labels/ are
+# committed at the repo root) > main project repo (everything under data/).
+if "GOC_DATA_DIR" in os.environ:
+    DATA = Path(os.environ["GOC_DATA_DIR"])
+    ASSIGN_DIR, LABEL_DIR = DATA / "assignments", DATA / "labels"
+elif (ROOT / ".labeling-kit").exists():
+    DATA = ROOT / "data"
+    ASSIGN_DIR, LABEL_DIR = ROOT / "assignments", ROOT / "labels"
+else:
+    DATA = ROOT / "data"
+    ASSIGN_DIR, LABEL_DIR = DATA / "assignments", DATA / "labels"
 NOTES = DATA / "parquet" / "noteevents.parquet"
-ASSIGN_DIR = DATA / "assignments"
-LABEL_DIR = DATA / "labels"
 
 YNU = ["yes", "no", "unclear"]
 PARTICIPANTS = ["patient", "family", "surrogate", "clinician_only", "unclear"]
@@ -72,7 +80,8 @@ def setup_notes() -> None:
 
 @st.cache_data(show_spinner="Loading your assigned notes...")
 def load_notes(assignment_path: str) -> pd.DataFrame:
-    a = pd.read_parquet(assignment_path).sort_values("label_order", ignore_index=True)
+    read = pd.read_csv if assignment_path.endswith(".csv") else pd.read_parquet
+    a = read(assignment_path).sort_values("label_order", ignore_index=True)
     con = duckdb.connect()
     con.register("a", a)
     notes = con.execute(f"""
@@ -121,25 +130,25 @@ def main() -> None:
         setup_notes()
         return
 
-    files = sorted(p.stem for p in ASSIGN_DIR.glob("*.parquet"))
+    files = {p.stem: p for p in sorted(ASSIGN_DIR.glob("*")) if p.suffix in {".parquet", ".csv"}}
     with st.sidebar:
         st.header("GOC labeling")
         annotator = st.text_input("Your initials", key="annotator").strip().upper()
         if not files:
             st.warning(f"Put your assignment file in `{ASSIGN_DIR.as_posix()}/`.")
             return
-        assignment = st.selectbox("Assignment", files, key="assignment")
+        assignment = st.selectbox("Assignment", list(files), key="assignment")
     if not annotator.isalpha() or len(annotator) > 5:
         st.info("Enter your initials (letters only) in the sidebar to start.")
         return
 
-    notes = load_notes((ASSIGN_DIR / f"{assignment}.parquet").as_posix())
+    notes = load_notes(files[assignment].as_posix())
     missing = notes["TEXT"].isna()
     wrong_len = ~missing & (notes["TEXT"].str.len() != notes["n_chars"])
     if missing.any() or wrong_len.any():
         st.error(f"Your local NOTEEVENTS doesn't match the assignment: {int(missing.sum())} notes "
-                 f"missing, {int(wrong_len.sum())} with a different length. Tell the coordinator; "
-                 "don't label.")
+                 f"missing, {int(wrong_len.sum())} with a different length. Re-download "
+                 "NOTEEVENTS (MIMIC-III v1.4) from PhysioNet and convert again before labeling.")
         return
 
     out = labels_path(assignment, annotator)
