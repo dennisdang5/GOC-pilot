@@ -62,7 +62,8 @@ keyword-baseline comparison, trade-off analysis. Do not build these unless asked
 
 Test and dev are disjoint samples. Few-shot examples are synthetic, so they can never leak into test.
 
-**Test sampling:** 25 strong-cue / 15 weak-cue / 10 background. Positive-heavy by design; never
+**Test sampling:** 35 cues-present / 15 cues-missing (decided 2026-10-16; was 25 strong /
+15 weak / 10 background). Dev uses the same ratio (~21 / 9). Positive-heavy by design; never
 report the raw positive rate as representative of MIMIC.
 
 **Statistical framing:** pilot. Report 95% Wilson CIs on every proportion. Do not claim one model
@@ -140,9 +141,12 @@ candidates.
 admissions only, not all of MIMIC-III. Gold and silver results cover the 5 kept note types only.
 GOC documented only in nursing or case-management notes counts as out of scope.
 
-**Strata:** strong-cue / weak-cue / background via screening regex. The weak-cue regex must include
-direction-neutral value language (`important to (him|her)`, `matters most`, `hopes to`,
-`wants to be able to`).
+**Strata (decided 2026-10-16):** two strata, **cues present / cues missing**, from one combined
+screening phrase list (`src/sampling/cues.py`). A note matching any phrase is cues-present. The
+list must include direction-neutral value language (`important to (him|her)`, `matters most`,
+`hopes to`, `wants to be able to`). Negation is ignored ("no family meeting" still counts as a cue),
+because strata only steer sampling. Template headings (e.g. a bare `Code status:` field) are
+measured with `src/sampling/cue_frequency.py` and kept off the list unless the user approves them.
 
 **Models:** 3–4 local open-weight models across families/sizes that fit available GPU.
 Strategies: zero-shot and few-shot. Structured JSON output validated with pydantic.
@@ -200,10 +204,16 @@ Longest note 53,169 chars (discharge summary).
 
 ### NEXT — `src/sampling/strata.py` (not started; present design choices first)
 
-Choices to bring to the user:
-- Strong-cue vs weak-cue phrase lists (weak-cue must include direction-neutral value language —
-  see "Strata" above); case-insensitivity; handling negation ("no family meeting").
-- Stratum precedence when a note matches both (strong wins?).
+Strata done 2026-10-16 (see "Strata" above):
+- Cue list finalized in `src/sampling/cues.py` (19 cues). Bare `code status` / `full code` /
+  `DNR` / `DNI` are probe-only (template headings: 81% / 56% / 22% / 14% of notes). HCP counts only
+  after a talk verb (bare HCP mostly names the proxy). Counts: `src/sampling/cue_frequency.py` →
+  `reports/cue_frequency.json`.
+- `src/sampling/strata.py` → `data/derived/strata.parquet` (`ROW_ID, SUBJECT_ID, HADM_ID,
+  CATEGORY, n_chars, stratum, cues`; no text). **cues_present 15,082 (24.4%) / cues_missing
+  46,759** of 61,841. Present by category: Physician 12,620 · DS 1,116 · General 854 · SW 486 ·
+  Consult 6. cues_present spans 1,634 adm / 1,491 patients.
+- Stratum ≠ label: it only steers sampling; it's hidden during labeling and kept for analysis.
 - Then `sampling/draw.py`: category balance (Social Work etc. are rare), cap notes per admission,
   keep each patient in only one of test/dev, fixed seed.
 - Also pending: write the test that `src/eval/` never imports `src/sampling/`.

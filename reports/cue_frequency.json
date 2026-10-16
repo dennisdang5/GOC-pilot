@@ -1,0 +1,456 @@
+{
+  "total_notes": 61841,
+  "category_notes": {
+    "Social Work": 1039,
+    "Physician ": 54213,
+    "General": 3886,
+    "Discharge summary": 2649,
+    "Consult": 54
+  },
+  "phrases": {
+    "family_meeting": {
+      "pattern": "family meeting",
+      "probe_only": false,
+      "notes": 6662,
+      "pct_pool": 10.77,
+      "only_cue": 3316,
+      "by_category": {
+        "Physician ": 5888,
+        "General": 278,
+        "Discharge summary": 251,
+        "Social Work": 245,
+        "Consult": 0
+      }
+    },
+    "goals_of_care": {
+      "pattern": "goals? of care|\\bgoc\\b",
+      "probe_only": false,
+      "notes": 5373,
+      "pct_pool": 8.69,
+      "only_cue": 1704,
+      "by_category": {
+        "Physician ": 4714,
+        "General": 246,
+        "Discharge summary": 312,
+        "Social Work": 99,
+        "Consult": 2
+      }
+    },
+    "discussed_code_status": {
+      "pattern": "discuss\\w* (code status|dnr|dni|prognosis|goals)|(code status|dnr|dni) (was |were )?discussed",
+      "probe_only": false,
+      "notes": 1504,
+      "pct_pool": 2.43,
+      "only_cue": 218,
+      "by_category": {
+        "Physician ": 1307,
+        "General": 124,
+        "Discharge summary": 44,
+        "Social Work": 29,
+        "Consult": 0
+      }
+    },
+    "end_of_life": {
+      "pattern": "end of life",
+      "probe_only": false,
+      "notes": 176,
+      "pct_pool": 0.28,
+      "only_cue": 20,
+      "by_category": {
+        "Physician ": 97,
+        "General": 9,
+        "Discharge summary": 20,
+        "Social Work": 50,
+        "Consult": 0
+      }
+    },
+    "quality_of_life": {
+      "pattern": "quality of life",
+      "probe_only": false,
+      "notes": 189,
+      "pct_pool": 0.31,
+      "only_cue": 30,
+      "by_category": {
+        "Physician ": 105,
+        "General": 19,
+        "Discharge summary": 26,
+        "Social Work": 39,
+        "Consult": 0
+      }
+    },
+    "comfort_care": {
+      "pattern": "comfort (care|measures)|\\bcmo\\b",
+      "probe_only": false,
+      "notes": 3267,
+      "pct_pool": 5.28,
+      "only_cue": 1073,
+      "by_category": {
+        "Physician ": 2268,
+        "General": 293,
+        "Discharge summary": 601,
+        "Social Work": 103,
+        "Consult": 2
+      }
+    },
+    "hospice": {
+      "pattern": "hospice",
+      "probe_only": false,
+      "notes": 1432,
+      "pct_pool": 2.32,
+      "only_cue": 264,
+      "by_category": {
+        "Physician ": 1006,
+        "General": 49,
+        "Discharge summary": 305,
+        "Social Work": 68,
+        "Consult": 4
+      }
+    },
+    "palliative": {
+      "pattern": "palliative",
+      "probe_only": false,
+      "notes": 3172,
+      "pct_pool": 5.13,
+      "only_cue": 1085,
+      "by_category": {
+        "Physician ": 2657,
+        "General": 78,
+        "Discharge summary": 347,
+        "Social Work": 90,
+        "Consult": 0
+      }
+    },
+    "withdraw_care": {
+      "pattern": "withdraw\\w* (of )?(care|support)",
+      "probe_only": false,
+      "notes": 302,
+      "pct_pool": 0.49,
+      "only_cue": 90,
+      "by_category": {
+        "Physician ": 194,
+        "General": 55,
+        "Discharge summary": 41,
+        "Social Work": 12,
+        "Consult": 0
+      }
+    },
+    "redirect_care": {
+      "pattern": "redirect\\w* (of )?care",
+      "probe_only": false,
+      "notes": 3,
+      "pct_pool": 0.0,
+      "only_cue": 0,
+      "by_category": {
+        "Physician ": 0,
+        "General": 0,
+        "Discharge summary": 0,
+        "Social Work": 3,
+        "Consult": 0
+      }
+    },
+    "health_care_proxy": {
+      "pattern": "(spoke|speak|talked|discuss\\w*|met|meeting|call\\w*|updat\\w*|contact\\w*)\\s+(with\\s+|to\\s+)?(the\\s+|pt.?s\\s+|patient.?s\\s+|his\\s+|her\\s+)?(health ?care proxy|\\bhcp\\b)",
+      "probe_only": false,
+      "notes": 468,
+      "pct_pool": 0.76,
+      "only_cue": 213,
+      "by_category": {
+        "Physician ": 417,
+        "General": 17,
+        "Discharge summary": 28,
+        "Social Work": 6,
+        "Consult": 0
+      }
+    },
+    "advance_directive": {
+      "pattern": "advance directive",
+      "probe_only": false,
+      "notes": 5,
+      "pct_pool": 0.01,
+      "only_cue": 1,
+      "by_category": {
+        "Physician ": 1,
+        "General": 0,
+        "Discharge summary": 4,
+        "Social Work": 0,
+        "Consult": 0
+      }
+    },
+    "molst_polst": {
+      "pattern": "\\b(molst|polst)\\b",
+      "probe_only": false,
+      "notes": 0,
+      "pct_pool": 0.0,
+      "only_cue": 0,
+      "by_category": {
+        "Physician ": 0,
+        "General": 0,
+        "Discharge summary": 0,
+        "Social Work": 0,
+        "Consult": 0
+      }
+    },
+    "important_to": {
+      "pattern": "important to (him|her|them)",
+      "probe_only": false,
+      "notes": 13,
+      "pct_pool": 0.02,
+      "only_cue": 1,
+      "by_category": {
+        "Physician ": 7,
+        "General": 1,
+        "Discharge summary": 0,
+        "Social Work": 5,
+        "Consult": 0
+      }
+    },
+    "matters_most": {
+      "pattern": "matters most",
+      "probe_only": false,
+      "notes": 0,
+      "pct_pool": 0.0,
+      "only_cue": 0,
+      "by_category": {
+        "Physician ": 0,
+        "General": 0,
+        "Discharge summary": 0,
+        "Social Work": 0,
+        "Consult": 0
+      }
+    },
+    "hopes_to": {
+      "pattern": "hopes to",
+      "probe_only": false,
+      "notes": 48,
+      "pct_pool": 0.08,
+      "only_cue": 33,
+      "by_category": {
+        "Physician ": 37,
+        "General": 1,
+        "Discharge summary": 5,
+        "Social Work": 5,
+        "Consult": 0
+      }
+    },
+    "wants_to_be_able_to": {
+      "pattern": "wants to be able to",
+      "probe_only": false,
+      "notes": 0,
+      "pct_pool": 0.0,
+      "only_cue": 0,
+      "by_category": {
+        "Physician ": 0,
+        "General": 0,
+        "Discharge summary": 0,
+        "Social Work": 0,
+        "Consult": 0
+      }
+    },
+    "would_not_want": {
+      "pattern": "would not want",
+      "probe_only": false,
+      "notes": 749,
+      "pct_pool": 1.21,
+      "only_cue": 321,
+      "by_category": {
+        "Physician ": 559,
+        "General": 60,
+        "Discharge summary": 64,
+        "Social Work": 66,
+        "Consult": 0
+      }
+    },
+    "wishes": {
+      "pattern": "\\bwishes\\b",
+      "probe_only": false,
+      "notes": 1673,
+      "pct_pool": 2.71,
+      "only_cue": 486,
+      "by_category": {
+        "Physician ": 1177,
+        "General": 203,
+        "Discharge summary": 157,
+        "Social Work": 134,
+        "Consult": 2
+      }
+    },
+    "probe_code_status": {
+      "pattern": "code status",
+      "probe_only": true,
+      "notes": 49880,
+      "pct_pool": 80.66,
+      "only_cue": null,
+      "by_category": {
+        "Physician ": 49206,
+        "General": 324,
+        "Discharge summary": 306,
+        "Social Work": 44,
+        "Consult": 0
+      }
+    },
+    "probe_dnr": {
+      "pattern": "\\bdnr\\b",
+      "probe_only": true,
+      "notes": 13807,
+      "pct_pool": 22.33,
+      "only_cue": null,
+      "by_category": {
+        "Physician ": 12666,
+        "General": 364,
+        "Discharge summary": 698,
+        "Social Work": 75,
+        "Consult": 4
+      }
+    },
+    "probe_dni": {
+      "pattern": "\\bdni\\b",
+      "probe_only": true,
+      "notes": 8619,
+      "pct_pool": 13.94,
+      "only_cue": null,
+      "by_category": {
+        "Physician ": 7798,
+        "General": 195,
+        "Discharge summary": 595,
+        "Social Work": 28,
+        "Consult": 3
+      }
+    },
+    "probe_full_code": {
+      "pattern": "full code",
+      "probe_only": true,
+      "notes": 34650,
+      "pct_pool": 56.03,
+      "only_cue": null,
+      "by_category": {
+        "Physician ": 34099,
+        "General": 279,
+        "Discharge summary": 249,
+        "Social Work": 23,
+        "Consult": 0
+      }
+    },
+    "probe_hcp_heading": {
+      "pattern": "(health ?care proxy|\\bhcp\\b)\\s*:",
+      "probe_only": true,
+      "notes": 348,
+      "pct_pool": 0.56,
+      "only_cue": null,
+      "by_category": {
+        "Physician ": 330,
+        "General": 1,
+        "Discharge summary": 12,
+        "Social Work": 5,
+        "Consult": 0
+      }
+    },
+    "probe_hcp_nonheading": {
+      "pattern": "(health ?care proxy|\\bhcp\\b)\\s*([^:\\s]|$)",
+      "probe_only": true,
+      "notes": 7109,
+      "pct_pool": 11.5,
+      "only_cue": null,
+      "by_category": {
+        "Physician ": 6089,
+        "General": 227,
+        "Discharge summary": 448,
+        "Social Work": 344,
+        "Consult": 1
+      }
+    },
+    "probe_family_meeting_heading": {
+      "pattern": "family meeting\\s*:",
+      "probe_only": true,
+      "notes": 298,
+      "pct_pool": 0.48,
+      "only_cue": null,
+      "by_category": {
+        "Physician ": 271,
+        "General": 5,
+        "Discharge summary": 3,
+        "Social Work": 19,
+        "Consult": 0
+      }
+    },
+    "probe_family_meeting_nonheading": {
+      "pattern": "family meeting\\s*([^:\\s]|$)",
+      "probe_only": true,
+      "notes": 6451,
+      "pct_pool": 10.43,
+      "only_cue": null,
+      "by_category": {
+        "Physician ": 5698,
+        "General": 276,
+        "Discharge summary": 251,
+        "Social Work": 226,
+        "Consult": 0
+      }
+    },
+    "probe_goc_heading": {
+      "pattern": "(goals? of care|\\bgoc\\b)\\s*:",
+      "probe_only": true,
+      "notes": 1053,
+      "pct_pool": 1.7,
+      "only_cue": null,
+      "by_category": {
+        "Physician ": 970,
+        "General": 6,
+        "Discharge summary": 74,
+        "Social Work": 3,
+        "Consult": 0
+      }
+    },
+    "probe_goc_nonheading": {
+      "pattern": "(goals? of care|\\bgoc\\b)\\s*([^:\\s]|$)",
+      "probe_only": true,
+      "notes": 4724,
+      "pct_pool": 7.64,
+      "only_cue": null,
+      "by_category": {
+        "Physician ": 4099,
+        "General": 244,
+        "Discharge summary": 283,
+        "Social Work": 96,
+        "Consult": 2
+      }
+    },
+    "probe_code_status_heading": {
+      "pattern": "code status\\s*:",
+      "probe_only": true,
+      "notes": 49343,
+      "pct_pool": 79.79,
+      "only_cue": null,
+      "by_category": {
+        "Physician ": 49003,
+        "General": 218,
+        "Discharge summary": 122,
+        "Social Work": 0,
+        "Consult": 0
+      }
+    }
+  },
+  "overall": {
+    "any_cue": {
+      "notes": 15082,
+      "pct_pool": 24.39,
+      "pct_by_category": {
+        "Physician ": 23.3,
+        "General": 22.0,
+        "Discharge summary": 42.1,
+        "Social Work": 46.8,
+        "Consult": 11.1
+      }
+    },
+    "any_with_probes": {
+      "notes": 55887,
+      "pct_pool": 90.37,
+      "pct_by_category": {
+        "Physician ": 96.6,
+        "General": 33.6,
+        "Discharge summary": 59.1,
+        "Social Work": 63.6,
+        "Consult": 13.0
+      }
+    }
+  }
+}
