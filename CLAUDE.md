@@ -202,7 +202,7 @@ Discharge summary 2,649 · Social Work 1,039 · Consult 54. Physician = 88%.
 Notes/admission median 12 (p90 55, max 437). 351 patients have ≥2 admissions (max 24).
 Longest note 53,169 chars (discharge summary).
 
-### NEXT — `src/sampling/strata.py` (not started; present design choices first)
+### Stage 2 · sampling — done 2026-10-16
 
 Strata done 2026-10-16 (see "Strata" above):
 - Cue list finalized in `src/sampling/cues.py` (19 cues). Bare `code status` / `full code` /
@@ -214,9 +214,17 @@ Strata done 2026-10-16 (see "Strata" above):
   46,759** of 61,841. Present by category: Physician 12,620 · DS 1,116 · General 854 · SW 486 ·
   Consult 6. cues_present spans 1,634 adm / 1,491 patients.
 - Stratum ≠ label: it only steers sampling; it's hidden during labeling and kept for analysis.
-- Then `sampling/draw.py`: category balance (Social Work etc. are rare), cap notes per admission,
-  keep each patient in only one of test/dev, fixed seed.
-- Also pending: write the test that `src/eval/` never imports `src/sampling/`.
+- `src/sampling/draw.py` run 2026-10-16 (seed 20261016) → `data/derived/test_sample.parquet` (50)
+  and `dev_sample.parquet` (30). cues_present quotas: test Phys 25 / DS 4 / Gen 3 / SW 3, dev
+  15 / 2 / 2 / 2 (Consult skipped); cues_missing simple random (test drew Phys 12 / Gen 3, dev
+  Phys 9). 1 note per patient across test+dev; test drawn first; no length filter.
+  Columns: `ROW_ID, SUBJECT_ID, HADM_ID, CATEGORY, stratum, n_chars, label_order`. **No sampling
+  weights** (user decision 2026-10-16): all metrics are reported unweighted on the sample, with
+  per-stratum breakdowns. Pool-level prevalence comes from Stage 6 silver labels, not from
+  re-weighting test. Refuses to overwrite: **test is frozen.**
+- `tests/test_eval_independence.py` enforces that `src/eval/` never imports `src/sampling/`.
+
+**NEXT:** local labeling CLI (`src/labeling/`). Present design choices first.
 
 ### Open items to raise later
 - LLM step: Ollama `num_ctx` must be set explicitly (silent truncation); long-note handling.
