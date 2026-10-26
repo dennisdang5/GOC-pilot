@@ -286,13 +286,21 @@ Further rules:
 
 ## 6. Status and next steps (2026-10-26)
 
-**Labels in:** dev 30/30 (5 members) and test_physician 50/50 (9 yes). Because 9 positives is too
-few, an enriched 50-note **test_b** was drawn and exported as `assignments/test_physician_b.csv`
-for the physician. Collect it when it comes back (`git pull` in `../GOC-labeler`, then `collect`).
+**Labels in:** dev 30/30 (5 members; 8 yes, 2 unclear) and test_physician 50/50 (9 yes).
+Because 9 positives is too few, an enriched 50-note **test_b** was drawn and pushed to
+GOC-labeler as `assignments/test_physician_b.csv` (2026-10-26).
 
-**▶ Resume here: LLM step design (`src/llm/`).** Not started: no design choices made, no code
-written. Begin by presenting the design choices below (options + trade-offs + recommendation) and
-get approval before writing code.
+**Waiting on:** the physician labeling `test_physician_b`. When it comes back: `git pull` in
+`../GOC-labeler`, then `python -m src.labeling.collect ../GOC-labeler/labels` (expect 50/50).
+Don't look at its yes rate in detail beyond the coverage check. test_b is frozen like test.
+
+**▶ Resume here: LLM step design (`src/llm/`).** This can go ahead in parallel with test_b
+labeling, since prompt tuning uses dev only. Not started: no design choices made, no code written.
+Begin by presenting the design choices below (options + trade-offs + recommendation) and get
+approval before writing code. Keep in mind:
+- Dev has only ~8 positives, so prompt tuning will be noisy. Synthetic few-shot examples help.
+- Eval must take the set as a parameter (test_a / test_b / combined) and report each separately
+  (see §4 guardrails).
 
 **Open items for the LLM step:**
 - Ollama `num_ctx` must be set explicitly (otherwise silent truncation). Decide long-note handling.
