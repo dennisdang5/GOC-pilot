@@ -7,8 +7,7 @@ within teams, even between credentialed users.
 ## One-time setup
 1. Clone the private repo and install (Python 3.11+):
    `python -m pip install duckdb pandas pyarrow pydantic streamlit`.
-2. Download `NOTEEVENTS.csv.gz` from PhysioNet (MIMIC-III v1.4) with your own credentials, and
-   put it in `data/raw/noteevents/`.
+2. Download `NOTEEVENTS.csv.gz` from the Google Drive, and put it in `data/raw/noteevents/`.
 3. Put the assignment file you were sent (e.g. `dev_B.parquet` or `test_physician.parquet`) in
    `data/assignments/`. It contains IDs only.
 4. From the repo root, run `streamlit run src/labeling/app.py`. A browser tab opens on

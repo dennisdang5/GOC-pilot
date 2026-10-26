@@ -67,12 +67,13 @@ comprehensiveness (former M2), keyword-baseline comparison, trade-off analysis.
 
 | Set | n | Labeled by | Purpose |
 |---|---|---|---|
-| **Test** | 50 | Physician only (single expert) | All reported numbers. Touched **once**. |
+| **Test** (test_a) | 50 | Physician only (single expert) | All reported numbers. Touched **once**. |
+| **Test supplement** (test_b) | 50 | Physician only | Enriched for positives (added 2026-10-26). Same freeze as test. |
 | **Dev** | 30 | 5 members × 6 notes, one labeler per note | Prompt tuning and error inspection |
 | **Few-shot examples** | ~6 | Synthetic (hand-written) | In-prompt demonstrations. Can never leak into test. |
 | **Unlabeled pool** | everything else (~61.8k) | the best LLM config | Silver labeling (Stage 6) |
 
-Test and dev are disjoint, and no patient appears in both.
+Test, test_b and dev are disjoint, and no patient appears in more than one of them.
 
 ### Sampling (two strata)
 - **Cues present / cues missing**, assigned by one screening phrase list. A note matching any
@@ -83,6 +84,13 @@ Test and dev are disjoint, and no patient appears in both.
   for analysis (e.g. how much real GOC sits in cues-missing).
 - **No sampling weights.** All metrics are reported unweighted on the sample, with per-stratum
   breakdowns. Pool-level prevalence comes from the Stage 6 silver labels, not from re-weighting test.
+- **test_b (enriched supplement, 2026-10-26).** The physician labeled only 9/50 test notes yes,
+  too few positives to estimate sensitivity. test_b adds 50 notes from a third stratum, `strong`:
+  ≥2 cue families AND charted ≤7 days before in-hospital death or hospice discharge
+  (`src/sampling/strong.py`). The rule was chosen from aggregate yes counts on dev **and test**
+  labels (`reports/yield_report.json`). This is a documented, user-approved deviation from the test
+  freeze for sampling design only: no model output was involved and the regex is not under
+  evaluation. That labeled yield was 8/16.
 
 ### Labeling
 
@@ -109,7 +117,7 @@ with required evidence, to cut labeling effort.
 ```json
 {
   "row_id": 0,
-  "assignment": "test_physician | dev_A .. dev_E",
+  "assignment": "test_physician | test_physician_b | dev_A .. dev_E",
   "goc_present": "yes | no | unclear",
   "annotator": "initials",
   "labeled_at": "ISO-8601 UTC"
@@ -118,13 +126,18 @@ with required evidence, to cut labeling effort.
 
 ### Statistics and evaluation guardrails
 - Pilot framing. Report **95% Wilson CIs** on every proportion.
+- **Primary metrics: sensitivity, PPV, F1, specificity.** Never use accuracy as a headline: the
+  sample is negative-heavy, so an all-`no` model would score high accuracy with sensitivity 0.
+- Report **test_a, test_b and combined** separately, each with per-stratum breakdowns. test_b is
+  enriched, so its PPV is not comparable to test_a's.
 - Don't claim one model beats another unless **McNemar's test** supports it; otherwise call them
   comparable.
 - `unclear` is collapsed to `no` for all metrics (primary analysis). Also report a sensitivity
   analysis that excludes `unclear`. Apply the same rule to humans and models.
 - **The test set is frozen.** No scoring, error inspection or peeking until prompts are frozen on
   dev. Whoever tunes prompts must not open `labels/test_physician_*` in the labeling repo until
-  then.
+  then. (Exception, 2026-10-26: aggregate yes counts by stratum / category / cue were inspected to
+  design test_b. No ROW_IDs, no text, no model output.)
 - Labelers work blind (no model output, keyword hits or stratum visible), with notes in randomized
   order.
 - **Screening regex (`src/sampling/`) is a sampling tool, never a method under evaluation.**
@@ -137,6 +150,8 @@ with required evidence, to cut labeling effort.
 - Results describe `'Nursing'`-period admissions only (see cohort rule), not all of MIMIC-III.
 - Only the 5 kept note types are covered. GOC documented only in nursing or case-management notes
   is out of scope.
+- test_b positives are cue-rich by construction, so sensitivity on test_b (and on the combined
+  set) is likely optimistic compared with GOC documented in less explicit language.
 - The test gold standard is one physician's labels: no human κ, no adjudication, no reliability
   estimate. There are no human evidence spans, so a gold label can only be audited by re-reading
   the note.
@@ -227,10 +242,25 @@ Further rules:
 - Columns: `ROW_ID, SUBJECT_ID, HADM_ID, CATEGORY, stratum, n_chars, label_order`.
 - `draw.py` refuses to overwrite existing samples.
 
-### Stage 3 · Labeling — tool built and shipped, labeling in progress
+**Supplement test_b** (`src/sampling/draw_supplement.py`, seed **20261026**) →
+`data/derived/test_b_sample.parquet` (50, `stratum = 'strong'`):
+- Yield diagnostic first: `src/sampling/yield_report.py ../GOC-labeler/labels` →
+  `reports/yield_report.json` (counts only). On dev + test, yes/n: cues_present 16/56,
+  cues_missing 1/24, Physician + cue 8/40, non-Physician + cue 8/16, ≥2 families 9/19,
+  ≥3 families 5/5, ≤7 d before end event 13/37 (>7 d 1/12), **≥2 families AND ≤7 d 8/16**.
+- Cue families (`strong.py`): discussion · transition · surrogate · values. End event =
+  `DEATHTIME`, else `DISCHTIME` if discharged to hospice; days = CHARTDATE → end date (≤7, can be
+  negative).
+- Strong pool 2,594 notes; 2,341 / 630 patients after excluding test + dev patients.
+- Quotas: Physician 32 · Discharge summary 6 · General 6 · Social Work 6. 1 note per patient,
+  0 patient overlap with test + dev. Refuses to overwrite.
+
+### Stage 3 · Labeling — test_a + dev labeled; test_b assigned
 
 - **Assignments** (`src/labeling/assign.py` → `data/assignments/`):
   - `test_physician` (50: Phys 37 · Gen 6 · DS 4 · SW 3) and `dev_A` … `dev_E` (6 each).
+  - `test_physician_b` (50: Phys 32 · DS 6 · Gen 6 · SW 6), written when `test_b_sample` exists.
+  - Existing assignment files are skipped, never overwritten.
   - Columns `ROW_ID, CATEGORY, n_chars, label_order`. Stratum and cues are dropped.
 - **App** (`src/labeling/app.py`, Streamlit, localhost):
   - On first run, converts the labeler's own NOTEEVENTS download.
@@ -254,10 +284,11 @@ Further rules:
 
 ---
 
-## 6. Status and next steps (2026-10-16)
+## 6. Status and next steps (2026-10-26)
 
-**Labeling has begun.** Collaborators are added on GOC-labeler and assignments handed out.
-Collect labels as they come in (`git pull` in `../GOC-labeler`, then `collect`).
+**Labels in:** dev 30/30 (5 members) and test_physician 50/50 (9 yes). Because 9 positives is too
+few, an enriched 50-note **test_b** was drawn and exported as `assignments/test_physician_b.csv`
+for the physician. Collect it when it comes back (`git pull` in `../GOC-labeler`, then `collect`).
 
 **▶ Resume here: LLM step design (`src/llm/`).** Not started: no design choices made, no code
 written. Begin by presenting the design choices below (options + trade-offs + recommendation) and

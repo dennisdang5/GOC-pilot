@@ -74,7 +74,10 @@ Every stage reads from and writes to `data/`, which is gitignored. No stage prin
 | `sampling/cue_frequency.py` | candidates | `reports/cue_frequency.json` | matches per phrase × category |
 | `sampling/strata.py` | candidates | `derived/strata.parquet` (ROW_ID, SUBJECT_ID, HADM_ID, CATEGORY, n_chars, stratum, cues) | stratum × category table |
 | `sampling/draw.py` | strata, seed 20261016 | `derived/{test,dev}_sample.parquet` (… stratum, n_chars, label_order) | sizes; asserts patient-disjoint; refuses overwrite |
-| `labeling/assign.py` | test/dev samples | `data/assignments/{test_physician,dev_A..dev_E}.parquet` (ROW_ID, CATEGORY, n_chars, label_order) | notes per file |
+| `sampling/yield_report.py` | candidates, strata, admissions, label files | `reports/yield_report.json` | yes/n per stratum, cue, cue-family count, timing, candidate rule |
+| `sampling/strong.py` | — | cue families + `is_strong` rule (≥2 families AND ≤7 d to death / hospice dc) | — |
+| `sampling/draw_supplement.py` | strata, candidates, admissions, test/dev samples, seed 20261026 | `derived/test_b_sample.parquet` (same columns, stratum `strong`) | pool size, sizes; asserts patient-disjoint; refuses overwrite |
+| `labeling/assign.py` | test/dev/test_b samples | `data/assignments/{test_physician,test_physician_b,dev_A..dev_E}.parquet` (ROW_ID, CATEGORY, n_chars, label_order) | notes per file |
 | `labeling/export_kit.py` | assignments + app code | GOC-labeler repo (code, README, `assignments/*.csv`) | file names |
 | `labeling/app.py` | assignment + labeler's own NOTEEVENTS | `<assignment>_<INITIALS>.jsonl` | — (local UI) |
 | `labeling/collect.py` | assignments + label files | — | labeled / missing per assignment, invalid lines |
@@ -147,7 +150,7 @@ note text      ──X──>  anyone else      (labelers use their own MIMIC do
 
 | Stage | Delivers |
 |---|---|
-| 1–2 Data prep + sampling | Candidate pool, 50 test / 30 dev samples |
+| 1–2 Data prep + sampling | Candidate pool, 50 test / 30 dev samples, 50-note enriched test_b |
 | 3 Human labeling | Physician gold standard (test), member labels (dev) |
 | 4–5 LLM pipeline + evaluation | Model × strategy metrics with 95% CIs |
 | 6 Weak supervision | Silver labels on the pool, error-corrected prevalence |

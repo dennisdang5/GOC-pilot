@@ -1,0 +1,706 @@
+{
+  "labels_not_in_pool": 0,
+  "by_stratum_category": [
+    {
+      "grp": "cues_missing / Consult",
+      "pool": 48,
+      "test_n": 0,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "cues_missing / Discharge summary",
+      "pool": 1533,
+      "test_n": 0,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "cues_missing / General",
+      "pool": 3032,
+      "test_n": 3,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "cues_missing / Physician",
+      "pool": 41593,
+      "test_n": 12,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 9,
+      "dev_yes": 1,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "cues_missing / Social Work",
+      "pool": 553,
+      "test_n": 0,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "cues_present / Consult",
+      "pool": 6,
+      "test_n": 0,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "cues_present / Discharge summary",
+      "pool": 1116,
+      "test_n": 4,
+      "test_yes": 2,
+      "test_unclear": 0,
+      "dev_n": 2,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "cues_present / General",
+      "pool": 854,
+      "test_n": 3,
+      "test_yes": 2,
+      "test_unclear": 0,
+      "dev_n": 2,
+      "dev_yes": 1,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "cues_present / Physician",
+      "pool": 12620,
+      "test_n": 25,
+      "test_yes": 3,
+      "test_unclear": 0,
+      "dev_n": 15,
+      "dev_yes": 5,
+      "dev_unclear": 1
+    },
+    {
+      "grp": "cues_present / Social Work",
+      "pool": 486,
+      "test_n": 3,
+      "test_yes": 2,
+      "test_unclear": 0,
+      "dev_n": 2,
+      "dev_yes": 1,
+      "dev_unclear": 1
+    }
+  ],
+  "by_cue": {
+    "family_meeting": {
+      "grp": "all",
+      "pool": 6662,
+      "test_n": 14,
+      "test_yes": 2,
+      "test_unclear": 0,
+      "dev_n": 5,
+      "dev_yes": 2,
+      "dev_unclear": 1
+    },
+    "goals_of_care": {
+      "grp": "all",
+      "pool": 5373,
+      "test_n": 18,
+      "test_yes": 4,
+      "test_unclear": 0,
+      "dev_n": 6,
+      "dev_yes": 2,
+      "dev_unclear": 1
+    },
+    "discussed_code_status": {
+      "grp": "all",
+      "pool": 1504,
+      "test_n": 4,
+      "test_yes": 1,
+      "test_unclear": 0,
+      "dev_n": 1,
+      "dev_yes": 0,
+      "dev_unclear": 1
+    },
+    "end_of_life": {
+      "grp": "all",
+      "pool": 176,
+      "test_n": 0,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 1,
+      "dev_yes": 1,
+      "dev_unclear": 0
+    },
+    "quality_of_life": {
+      "grp": "all",
+      "pool": 189,
+      "test_n": 1,
+      "test_yes": 1,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    "comfort_care": {
+      "grp": "all",
+      "pool": 3267,
+      "test_n": 10,
+      "test_yes": 6,
+      "test_unclear": 0,
+      "dev_n": 5,
+      "dev_yes": 2,
+      "dev_unclear": 0
+    },
+    "hospice": {
+      "grp": "all",
+      "pool": 1432,
+      "test_n": 3,
+      "test_yes": 2,
+      "test_unclear": 0,
+      "dev_n": 5,
+      "dev_yes": 1,
+      "dev_unclear": 1
+    },
+    "palliative": {
+      "grp": "all",
+      "pool": 3172,
+      "test_n": 4,
+      "test_yes": 1,
+      "test_unclear": 0,
+      "dev_n": 5,
+      "dev_yes": 1,
+      "dev_unclear": 1
+    },
+    "withdraw_care": {
+      "grp": "all",
+      "pool": 302,
+      "test_n": 0,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    "redirect_care": {
+      "grp": "all",
+      "pool": 3,
+      "test_n": 0,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    "health_care_proxy": {
+      "grp": "all",
+      "pool": 468,
+      "test_n": 2,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 1,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    "advance_directive": {
+      "grp": "all",
+      "pool": 5,
+      "test_n": 0,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    "molst_polst": null,
+    "important_to": {
+      "grp": "all",
+      "pool": 13,
+      "test_n": 0,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    "matters_most": null,
+    "hopes_to": {
+      "grp": "all",
+      "pool": 48,
+      "test_n": 0,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    "wants_to_be_able_to": null,
+    "would_not_want": {
+      "grp": "all",
+      "pool": 749,
+      "test_n": 3,
+      "test_yes": 2,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    "wishes": {
+      "grp": "all",
+      "pool": 1673,
+      "test_n": 6,
+      "test_yes": 4,
+      "test_unclear": 0,
+      "dev_n": 5,
+      "dev_yes": 3,
+      "dev_unclear": 1
+    }
+  },
+  "by_probe": {
+    "probe_family_meeting_nonheading": {
+      "grp": "all",
+      "pool": 6451,
+      "test_n": 13,
+      "test_yes": 2,
+      "test_unclear": 0,
+      "dev_n": 5,
+      "dev_yes": 2,
+      "dev_unclear": 1
+    },
+    "probe_goc_nonheading": {
+      "grp": "all",
+      "pool": 4724,
+      "test_n": 17,
+      "test_yes": 4,
+      "test_unclear": 0,
+      "dev_n": 6,
+      "dev_yes": 2,
+      "dev_unclear": 1
+    },
+    "probe_family_meeting_heading": {
+      "grp": "all",
+      "pool": 298,
+      "test_n": 2,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    "probe_goc_heading": {
+      "grp": "all",
+      "pool": 1053,
+      "test_n": 3,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 1,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    }
+  },
+  "by_n_families": [
+    {
+      "grp": "0",
+      "pool": 46759,
+      "test_n": 15,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 9,
+      "dev_yes": 1,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "1",
+      "pool": 10959,
+      "test_n": 23,
+      "test_yes": 3,
+      "test_unclear": 0,
+      "dev_n": 14,
+      "dev_yes": 4,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "2",
+      "pool": 3433,
+      "test_n": 9,
+      "test_yes": 3,
+      "test_unclear": 0,
+      "dev_n": 5,
+      "dev_yes": 1,
+      "dev_unclear": 2
+    },
+    {
+      "grp": "3",
+      "pool": 690,
+      "test_n": 3,
+      "test_yes": 3,
+      "test_unclear": 0,
+      "dev_n": 2,
+      "dev_yes": 2,
+      "dev_unclear": 0
+    }
+  ],
+  "by_timing": [
+    {
+      "grp": "0-2 d",
+      "pool": 8826,
+      "test_n": 12,
+      "test_yes": 4,
+      "test_unclear": 0,
+      "dev_n": 9,
+      "dev_yes": 4,
+      "dev_unclear": 1
+    },
+    {
+      "grp": "3-7 d",
+      "pool": 8314,
+      "test_n": 9,
+      "test_yes": 1,
+      "test_unclear": 0,
+      "dev_n": 7,
+      "dev_yes": 4,
+      "dev_unclear": 0
+    },
+    {
+      "grp": ">7 d",
+      "pool": 12635,
+      "test_n": 9,
+      "test_yes": 1,
+      "test_unclear": 0,
+      "dev_n": 3,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "no death/hospice dc",
+      "pool": 32066,
+      "test_n": 20,
+      "test_yes": 3,
+      "test_unclear": 0,
+      "dev_n": 11,
+      "dev_yes": 0,
+      "dev_unclear": 1
+    }
+  ],
+  "signals": {
+    "any cue (cues_present)": {
+      "grp": "all",
+      "pool": 15082,
+      "test_n": 35,
+      "test_yes": 9,
+      "test_unclear": 0,
+      "dev_n": 21,
+      "dev_yes": 7,
+      "dev_unclear": 2
+    },
+    "FM/GOC non-heading": {
+      "grp": "all",
+      "pool": 9448,
+      "test_n": 25,
+      "test_yes": 6,
+      "test_unclear": 0,
+      "dev_n": 10,
+      "dev_yes": 4,
+      "dev_unclear": 1
+    },
+    "discussion-type cue": {
+      "grp": "all",
+      "pool": 2380,
+      "test_n": 6,
+      "test_yes": 1,
+      "test_unclear": 0,
+      "dev_n": 3,
+      "dev_yes": 1,
+      "dev_unclear": 1
+    },
+    ">=2 cue families": {
+      "grp": "all",
+      "pool": 4123,
+      "test_n": 12,
+      "test_yes": 6,
+      "test_unclear": 0,
+      "dev_n": 7,
+      "dev_yes": 3,
+      "dev_unclear": 2
+    },
+    ">=3 cue families": {
+      "grp": "all",
+      "pool": 690,
+      "test_n": 3,
+      "test_yes": 3,
+      "test_unclear": 0,
+      "dev_n": 2,
+      "dev_yes": 2,
+      "dev_unclear": 0
+    },
+    "Social Work + any cue": {
+      "grp": "all",
+      "pool": 486,
+      "test_n": 3,
+      "test_yes": 2,
+      "test_unclear": 0,
+      "dev_n": 2,
+      "dev_yes": 1,
+      "dev_unclear": 1
+    },
+    "timing <=7 d": {
+      "grp": "all",
+      "pool": 17140,
+      "test_n": 21,
+      "test_yes": 5,
+      "test_unclear": 0,
+      "dev_n": 16,
+      "dev_yes": 8,
+      "dev_unclear": 1
+    },
+    "timing <=2 d": {
+      "grp": "all",
+      "pool": 8826,
+      "test_n": 12,
+      "test_yes": 4,
+      "test_unclear": 0,
+      "dev_n": 9,
+      "dev_yes": 4,
+      "dev_unclear": 1
+    },
+    "strong (any of 4)": {
+      "grp": "all",
+      "pool": 11035,
+      "test_n": 29,
+      "test_yes": 8,
+      "test_unclear": 0,
+      "dev_n": 14,
+      "dev_yes": 5,
+      "dev_unclear": 2
+    },
+    "strong AND timing <=7 d": {
+      "grp": "all",
+      "pool": 5425,
+      "test_n": 16,
+      "test_yes": 5,
+      "test_unclear": 0,
+      "dev_n": 11,
+      "dev_yes": 5,
+      "dev_unclear": 1
+    },
+    "strong AND timing <=2 d": {
+      "grp": "all",
+      "pool": 3289,
+      "test_n": 10,
+      "test_yes": 4,
+      "test_unclear": 0,
+      "dev_n": 7,
+      "dev_yes": 3,
+      "dev_unclear": 1
+    },
+    ">=2 families AND timing <=7 d": {
+      "grp": "all",
+      "pool": 2594,
+      "test_n": 10,
+      "test_yes": 5,
+      "test_unclear": 0,
+      "dev_n": 6,
+      "dev_yes": 3,
+      "dev_unclear": 1
+    }
+  },
+  "strong_and_timing7_by_category": [
+    {
+      "grp": "Discharge summary",
+      "pool": 407,
+      "test_n": 2,
+      "test_yes": 1,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "General",
+      "pool": 381,
+      "test_n": 1,
+      "test_yes": 1,
+      "test_unclear": 0,
+      "dev_n": 1,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "Physician",
+      "pool": 4348,
+      "test_n": 11,
+      "test_yes": 2,
+      "test_unclear": 0,
+      "dev_n": 8,
+      "dev_yes": 4,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "Social Work",
+      "pool": 289,
+      "test_n": 2,
+      "test_yes": 1,
+      "test_unclear": 0,
+      "dev_n": 2,
+      "dev_yes": 1,
+      "dev_unclear": 1
+    }
+  ],
+  "strong_by_category": [
+    {
+      "grp": "Consult",
+      "pool": 2,
+      "test_n": 0,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "Discharge summary",
+      "pool": 600,
+      "test_n": 3,
+      "test_yes": 1,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "General",
+      "pool": 568,
+      "test_n": 3,
+      "test_yes": 2,
+      "test_unclear": 0,
+      "dev_n": 1,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "Physician",
+      "pool": 9379,
+      "test_n": 20,
+      "test_yes": 3,
+      "test_unclear": 0,
+      "dev_n": 11,
+      "dev_yes": 4,
+      "dev_unclear": 1
+    },
+    {
+      "grp": "Social Work",
+      "pool": 486,
+      "test_n": 3,
+      "test_yes": 2,
+      "test_unclear": 0,
+      "dev_n": 2,
+      "dev_yes": 1,
+      "dev_unclear": 1
+    }
+  ],
+  "fam2_and_timing7_by_category": [
+    {
+      "grp": "Discharge summary",
+      "pool": 331,
+      "test_n": 2,
+      "test_yes": 1,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "General",
+      "pool": 207,
+      "test_n": 1,
+      "test_yes": 1,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "Physician",
+      "pool": 1925,
+      "test_n": 5,
+      "test_yes": 2,
+      "test_unclear": 0,
+      "dev_n": 4,
+      "dev_yes": 2,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "Social Work",
+      "pool": 131,
+      "test_n": 2,
+      "test_yes": 1,
+      "test_unclear": 0,
+      "dev_n": 2,
+      "dev_yes": 1,
+      "dev_unclear": 1
+    }
+  ],
+  "fam3_by_category": [
+    {
+      "grp": "Consult",
+      "pool": 1,
+      "test_n": 0,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "Discharge summary",
+      "pool": 91,
+      "test_n": 0,
+      "test_yes": 0,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "General",
+      "pool": 49,
+      "test_n": 1,
+      "test_yes": 1,
+      "test_unclear": 0,
+      "dev_n": 0,
+      "dev_yes": 0,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "Physician",
+      "pool": 497,
+      "test_n": 1,
+      "test_yes": 1,
+      "test_unclear": 0,
+      "dev_n": 1,
+      "dev_yes": 1,
+      "dev_unclear": 0
+    },
+    {
+      "grp": "Social Work",
+      "pool": 52,
+      "test_n": 1,
+      "test_yes": 1,
+      "test_unclear": 0,
+      "dev_n": 1,
+      "dev_yes": 1,
+      "dev_unclear": 0
+    }
+  ]
+}
