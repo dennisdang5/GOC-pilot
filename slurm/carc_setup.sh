@@ -31,13 +31,18 @@ echo "python: $(.venv/bin/python --version)"
 # 3. Ollama, pinned to the local version.
 if [ ! -x "$OLLAMA_DIR/bin/ollama" ]; then
     mkdir -p "$OLLAMA_DIR"
-    base="https://github.com/ollama/ollama/releases/download/v$OLLAMA_VERSION"
-    if curl -fsSL "$base/ollama-linux-amd64.tgz" -o /tmp/ollama-$USER.tgz; then
-        tar -xzf /tmp/ollama-$USER.tgz -C "$OLLAMA_DIR"
+    # Releases ship .tar.zst; CARC's tar has no --zstd, so decompress separately.
+    url="https://github.com/ollama/ollama/releases/download/v$OLLAMA_VERSION/ollama-linux-amd64.tar.zst"
+    archive="/tmp/ollama-$USER.tar.zst"
+    curl -fsSL "$url" -o "$archive"
+    if command -v zstd > /dev/null; then
+        zstd -dc "$archive" | tar -x -C "$OLLAMA_DIR"
     else
-        curl -fsSL "$base/ollama-linux-amd64.tar.zst" | tar --zstd -x -C "$OLLAMA_DIR"
+        .venv/bin/python -m pip install -q zstandard
+        .venv/bin/python -c 'import sys, zstandard; zstandard.ZstdDecompressor().copy_stream(open(sys.argv[1], "rb"), sys.stdout.buffer)' "$archive" \
+            | tar -x -C "$OLLAMA_DIR"
     fi
-    rm -f /tmp/ollama-$USER.tgz
+    rm -f "$archive"
 fi
 OLLAMA="$OLLAMA_DIR/bin/ollama"
 echo "ollama: $("$OLLAMA" --version 2>&1 | tail -n 1)"
