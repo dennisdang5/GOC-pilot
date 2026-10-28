@@ -1,7 +1,7 @@
 # Architecture — GOC Detection in MIMIC-III (Pilot, Milestone 1)
 
-Stages 1–3 are built. Stages 4–6 are **planned**. Their modules and record shapes below are a
-sketch, and the design still has to be approved (see CLAUDE.md §6).
+Stages 1–4 are built. Stages 5–6 are **planned**. Their modules below are a sketch, and the design
+still has to be approved (see CLAUDE.md §6).
 
 ## Pipeline overview
 
@@ -21,19 +21,21 @@ flowchart TD
         STRAT --> POOL[Unlabeled pool<br/>everything else]
     end
 
-    subgraph GOLD["Stage 3 · Human labeling (in progress)"]
+    subgraph GOLD["Stage 3 · Human labeling (done)"]
         TEST --> ASSIGN[ID-only assignments<br/>GOC-labeler repo]
         DEV --> ASSIGN
+        TESTB[Test supplement test_b · 50<br/>strong stratum] --> ASSIGN
         ASSIGN --> APP[Local Streamlit app<br/>own NOTEEVENTS · yes / no / unsure]
-        APP --> PHYS[Physician · all 50 test] --> GT[(gold_test)]
+        APP --> PHYS[Physician · test_a 50 + test_b 50] --> GT[(gold_test)]
         APP --> MEM[5 members × 6 dev] --> GD[(gold_dev)]
     end
 
-    subgraph LLM["Stage 4 · LLM pipeline (planned)"]
-        SYN[Synthetic few-shot<br/>~6 notes] --> PROMPT[Prompt templates<br/>zero-shot · few-shot]
-        PROMPT --> RUN[Local runner<br/>Ollama · 3–4 models × strategies]
-        RUN --> VAL[Validator<br/>JSON schema · evidence span check]
+    subgraph LLM["Stage 4 · LLM pipeline (built)"]
+        SYN[Synthetic few-shot<br/>3 notes] --> PROMPT[Prompts<br/>zero-shot · few-shot]
+        PROMPT --> RUN[Runner · Ollama on CARC A100<br/>llama3.1:8b · qwen3:8b · gemma3:4b<br/>num_ctx 12288 · JSON schema]
+        RUN --> VAL[pydantic · evidence span check]
         VAL --> PRED[(predictions)]
+        FREEZE[FROZEN prompt hashes] -.guards test sets.-> RUN
     end
 
     subgraph EVAL["Stage 5 · Evaluation (planned)"]
@@ -81,13 +83,16 @@ Every stage reads from and writes to `data/`, which is gitignored. No stage prin
 | `labeling/export_kit.py` | assignments + app code | GOC-labeler repo (code, README, `assignments/*.csv`) | file names |
 | `labeling/app.py` | assignment + labeler's own NOTEEVENTS | `<assignment>_<INITIALS>.jsonl` | — (local UI) |
 | `labeling/collect.py` | assignments + label files | — | labeled / missing per assignment, invalid lines |
+| `llm/schema.py` | — | `LLMOutput` (evidence_span → goc_present yes/no), `Prediction` | — |
+| `llm/prompts.py` | `prompts/system.txt`, `prompts/user.txt`, `fewshot.jsonl` (synthetic) | chat messages per strategy, prompt hash | — |
+| `llm/notes.py` | sample parquets, candidates | ROW_IDs per set, TEXT in memory | — |
+| `llm/run.py` | model, strategy, set (`dev \| test_a \| test_b`) | `predictions/{model}_{strategy}_{set}.jsonl` + `predictions/raw/` | counts, latency, error types, ROW_IDs |
+| `llm/validate.py` | prediction files | — (`span_verified` is filled by run) | n, errors, % spans verified |
 
 ### Planned (design not yet approved)
 
 | Module | Input | Output | Prints |
 |---|---|---|---|
-| `llm/run.py` | ids, model, strategy | `predictions/{model}_{strategy}_{set}.jsonl` | throughput, parse failures |
-| `llm/validate.py` | predictions + notes | adds `span_verified` | % valid JSON, % spans verified |
 | `eval/metrics.py` | gold + predictions | `reports/{set}_metrics.json` | metrics table |
 | `eval/triage.py` | dev gold + predictions + strata | `reports/dev_errors.json` | errors by stratum, category |
 | `weak/silver.py` | pool ids, frozen config | `predictions/silver_pool.jsonl` | label distribution |
@@ -106,20 +111,27 @@ Every stage reads from and writes to `data/`, which is gitignored. No stage prin
 
 Latest record per `row_id` wins. `unclear` is shown to labelers as "unsure".
 
-### Prediction record (planned, shared by every model × strategy)
+### Prediction record (`llm/schema.py`, shared by every model × strategy)
 
 ```json
 {
   "row_id": 0,
-  "method": "llama3-8b",
-  "strategy": "few_shot",
-  "goc_present": "yes | no | unclear",
-  "evidence_span": "...",
-  "span_verified": true,
-  "raw_output_path": "predictions/raw/....txt",
-  "latency_s": 4.2
+  "method": "llama3.1:8b",
+  "strategy": "zero_shot | few_shot",
+  "set": "dev | test_a | test_b",
+  "goc_present": "yes | no | null (only when error is set)",
+  "evidence_span": "... | null",
+  "span_verified": "true | false | null (no span)",
+  "prompt_hash": "12 hex chars",
+  "prompt_tokens": 3120,
+  "truncated": false,
+  "latency_s": 2.3,
+  "raw_output_path": "data/predictions/raw/<stem>/<row_id>.json",
+  "error": "null | parse | truncated"
 }
 ```
+
+Append-only; the latest record per `row_id` wins.
 
 Every model × strategy writes this same shape, so `eval/` treats them identically. Prediction
 files may contain note text (`evidence_span`) and stay under `data/`.

@@ -1,0 +1,5 @@
+# model tag, Ollama ID (as shown by `ollama list` on the local RTX 3070 machine, 2026-10-28).
+# carc_setup.sh and run_llm.sbatch refuse to run if a pulled model's ID differs.
+llama3.1:8b 46e0c10c039e
+qwen3:8b 500a1f067a9f
+gemma3:4b 68ceab7e468a

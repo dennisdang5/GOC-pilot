@@ -31,7 +31,9 @@ If a task seems to require reading real note text, stop and say so.
 - Each labeler uses **their own** PhysioNet download. PhysioNet FAQ: "Sharing data within teams or
   classes is not permitted." Only **ID-only** assignment files go out; only **text-free** label
   files come back.
-- All LLM inference uses **locally deployed open-weight models** (Ollama, or vLLM via WSL).
+- All LLM inference uses **locally deployed open-weight models** (Ollama, or vLLM via WSL), run
+  on the user's own machine or on USC CARC Discovery in the user's owner-only directory
+  (`docs/carc.md`). Only the 4 derived parquets the runner needs go to CARC.
 
 ---
 
@@ -133,7 +135,8 @@ with required evidence, to cut labeling effort.
 - Don't claim one model beats another unless **McNemar's test** supports it; otherwise call them
   comparable.
 - `unclear` is collapsed to `no` for all metrics (primary analysis). Also report a sensitivity
-  analysis that excludes `unclear`. Apply the same rule to humans and models.
+  analysis that excludes `unclear`. Models answer yes / no only (user decision 2026-10-28), so
+  that analysis removes only notes that humans labeled `unclear`.
 - **The test set is frozen.** No scoring, error inspection or peeking until prompts are frozen on
   dev. Whoever tunes prompts must not open `labels/test_physician_*` in the labeling repo until
   then. (Exception, 2026-10-26: aggregate yes counts by stratum / category / cue were inspected to
@@ -282,33 +285,69 @@ Further rules:
   - Labelers push only their own `labels/<assignment>_<INITIALS>.jsonl`.
   - To collect: `git pull` there, then `python -m src.labeling.collect ../GOC-labeler/labels`.
 
+### Stage 4 · LLM pipeline — built (2026-10-28); dev runs in, prompts not frozen
+
+Decisions (user-approved 2026-10-28):
+- **Models** (Ollama 0.40.12, all Q4, 100% GPU): `llama3.1:8b`, `qwen3:8b` (sent `think: false`),
+  `gemma3:4b`. Installed `llama3` and `gemma2:2b` are not used.
+- **Strategies:** `zero_shot` and `few_shot`. Both share `src/llm/prompts/system.txt` (definition +
+  edge-case table) and `user.txt`. Few-shot adds 3 **synthetic** examples (`src/llm/fewshot.jsonl`:
+  direct yes · secondhand yes · hard no) as prior user / assistant turns.
+- **Output** (`src/llm/schema.py`): Ollama structured output (JSON schema), validated with pydantic.
+  Fields in order: `evidence_span` (verbatim quote or null) → `goc_present` (`yes | no`, no
+  `unclear`).
+- **Decoding:** temperature 0, seed 20261028, `num_predict` 400, `num_ctx` **12288** on every call.
+- **Context:** whole notes, no chunking. Before sending, the prompt length is estimated at
+  2.5 chars/token; a note that might not fit is not sent (error `truncated`). All dev / test_a /
+  test_b notes fit under both strategies. Real prompts are 2–4k tokens.
+- **Transport:** `requests` → `localhost:11434/api/chat` (no `ollama` package).
+- **Hardware (user decision 2026-10-28):** all runs on **CARC Discovery, `gpu` partition, A100**
+  (`slurm/run_llm.sbatch`), using Ollama 0.40.12 with model IDs pinned in `slurm/models.txt`.
+  This followed hard power-offs on the local RTX 3070. Use one GPU type for every set. The partial
+  local dev predictions are not mixed with CARC ones; dev is rerun from scratch there.
+- **Test-set guard:** `--set test_a | test_b` is refused unless `src/llm/prompts/FROZEN` exists and
+  its prompt hashes match. Create it with `python -m src.llm.run --freeze` only when dev tuning is
+  done. "combined" is assembled in eval, not run.
+
+Files:
+- `src/llm/run.py --model M --strategy S --set dev [--limit N]` →
+  `data/predictions/{model}_{strategy}_{set}.jsonl` (append-only, latest per ROW_ID wins,
+  resumable) + raw replies in `data/predictions/raw/`. Errors: `parse`, `truncated` (pre-check or
+  `done_reason = length`). Prints counts, latency, error types, ROW_IDs only.
+- `src/llm/validate.py [FILES]`: per-file n, errors, spans, % spans verified (whitespace-normalized,
+  case-sensitive exact substring; filled at run time).
+- `src/llm/notes.py`: set → ROW_IDs → TEXT, in memory only.
+- Speed: ~2–3 s per note once loaded, so a dev run of 6 configs takes ~10 min.
+
 ---
 
-## 6. Status and next steps (2026-10-26)
+## 6. Status and next steps (2026-10-28)
 
-**Labels in:** dev 30/30 (5 members; 8 yes, 2 unclear) and test_physician 50/50 (9 yes).
-Because 9 positives is too few, an enriched 50-note **test_b** was drawn and pushed to
-GOC-labeler as `assignments/test_physician_b.csv` (2026-10-26).
+**Labels in (all):** dev 30/30 (5 members; 8 yes, 2 unclear), test_physician 50/50 (9 yes) and
+test_physician_b 50/50 (collected 2026-10-28; yes rate deliberately not inspected). Test_a and
+test_b are frozen.
 
-**Waiting on:** the physician labeling `test_physician_b`. When it comes back: `git pull` in
-`../GOC-labeler`, then `python -m src.labeling.collect ../GOC-labeler/labels` (expect 50/50).
-Don't look at its yes rate in detail beyond the coverage check. test_b is frozen like test.
+**Stage 4 built** (see §5). Local dev runs stopped partway when the PC hard-powered-off
+(llama3.1 zero-shot 6/30, few-shot 14/30; others 3-note smoke runs only). **Next: set up CARC
+(`docs/carc.md`, repo at `~/GOC-pilot`) and rerun all 6 configs on dev there.** Smoke run spans:
+only 9/15 quotes verified, and models often give a quote with `no`.
 
-**▶ Resume here: LLM step design (`src/llm/`).** This can go ahead in parallel with test_b
-labeling, since prompt tuning uses dev only. Not started: no design choices made, no code written.
-Begin by presenting the design choices below (options + trade-offs + recommendation) and get
-approval before writing code. Keep in mind:
-- Dev has only ~8 positives, so prompt tuning will be noisy. Synthetic few-shot examples help.
-- Eval must take the set as a parameter (test_a / test_b / combined) and report each separately
-  (see §4 guardrails).
+**▶ Resume here: eval design (`src/eval/metrics.py`).** Present the options and get approval
+before writing code. It must:
+- score dev now, and test_a / test_b / combined later (set as a parameter, each reported
+  separately with per-stratum breakdowns);
+- report sensitivity, PPV, F1 and specificity with 95% Wilson CIs, collapse `unclear` → `no`, add
+  the exclude-`unclear` sensitivity analysis, McNemar for model comparisons, and the span
+  verification rate;
+- read gold from `../GOC-labeler/labels` via `src.labeling.collect.read_labels`, and never import
+  `src/sampling/` (stratum comes from the sample parquets).
 
-**Open items for the LLM step:**
-- Ollama `num_ctx` must be set explicitly (otherwise silent truncation). Decide long-note handling.
-- Hardware: RTX 3070, 8 GB VRAM, so models ≤ ~8B at Q4. Ollama 0.35.1 installed (has `gemma2:2b`,
-  `llama3`). vLLM would need WSL.
-- Models: 3–4 local open-weight models across families/sizes. Strategies: zero-shot and few-shot.
-  Structured JSON output validated with pydantic.
-- Full-pool silver labeling ≈ days per config; consider subsampling.
+Then the dev loop: error triage → prompt revisions → `--freeze` → a single test run.
+- Dev has only 8 positives, so prompt tuning will be noisy.
+- Full-pool silver labeling ≈ 2 days per config at ~2.5 s/note; subsample in Stage 6.
+
+**Housekeeping:** `../GOC-labeler` has uncommitted local edits to `.streamlit/config.toml` and
+`src/ingest/load.py`. Ask the user whether to discard them or move them into this repo.
 
 **Git:** github.com/dennisdang5/GOC-pilot is **private**. Keep it private: `reports/` holds exact
 MIMIC aggregate counts, some < 10.
@@ -331,7 +370,7 @@ src/
   cohort/             # cohort + candidate notes
   sampling/           # cues, strata, draw   ← never imported by eval
   labeling/           # Streamlit app, schema, assign, collect, export_kit
-  llm/                # prompts, runners, output validation (not started)
+  llm/                # schema, prompts/, fewshot.jsonl (synthetic), notes, run, validate
   eval/               # metrics, CIs, McNemar, error analysis (not started)
   weak/               # silver labeling of the unlabeled pool (not started)
 tests/                # synthetic data only; fixtures/ for synthetic notes
