@@ -319,9 +319,28 @@ Files:
 - `src/llm/notes.py`: set → ROW_IDs → TEXT, in memory only.
 - Speed: ~2–3 s per note once loaded, so a dev run of 6 configs takes ~10 min.
 
+### Stage 5 · Evaluation — built (2026-10-29); dev scored
+
+`src/eval/metrics.py --set dev | test_a | test_b | combined [--labels DIR] [--pair A B ...]` →
+`reports/eval_{set}.json` (aggregates) + `reports/errors_{set}_{config}.csv` (FP / FN ROW_IDs only,
+gitignored by `*.csv`). Decisions (user-approved 2026-10-29):
+- Gold from `../GOC-labeler/labels` via `read_labels`; opens only that set's label files. Stratum
+  from the sample parquets (`src.llm.notes.SAMPLES`), never `src/sampling/`.
+- Variants: **primary** (`unclear` → no) · **exclude_unclear** · **strict** (a `yes` without a
+  verified span → no). Failed predictions (`parse`, `truncated`) → no; failure count per config.
+  `num_predict` stays 400.
+- Sensitivity, PPV, specificity with Wilson 95% CIs; F1 point estimate only (default taken).
+  Undefined metrics are `NA`, never 0. Per-stratum and (combined) per-part breakdowns; strata with
+  <5 gold positives flagged.
+- Spans reported separately for `yes` and `no` answers (verified / given).
+- Exact McNemar on per-note correctness, Holm-adjusted. Dev: all pairs, exploratory. Test sets:
+  only pairs named with `--pair`, chosen before the test run.
+- Test sets are refused until `FROZEN` exists. A missing gold label or prediction stops the run.
+- Tests: `tests/test_eval_metrics.py` (synthetic).
+
 ---
 
-## 6. Status and next steps (2026-10-28)
+## 6. Status and next steps (2026-10-29)
 
 **Labels in (all):** dev 30/30 (5 members; 8 yes, 2 unclear), test_physician 50/50 (9 yes) and
 test_physician_b 50/50 (collected 2026-10-28; yes rate deliberately not inspected). Test_a and
@@ -343,21 +362,38 @@ quotes verified, and models often give a quote with `no`.
   in `/scratch1/dennisda/ollama-models`, all 3 IDs match `slurm/models.txt`.
 - Account `xiangren_1987`. The `gpu` partition offers a100, a40, l40s, p100 and v100; we use
   **a100** only.
-- **Dev job submitted on A100 (pending).** Next: check that every config reports
-  `skipped 0 | ok 30`, copy `data/predictions/` back to the PC (move the old local predictions
-  aside first), then design the eval.
 
-**▶ Resume here: eval design (`src/eval/metrics.py`).** Present the options and get approval
-before writing code. It must:
-- score dev now, and test_a / test_b / combined later (set as a parameter, each reported
-  separately with per-stratum breakdowns);
-- report sensitivity, PPV, F1 and specificity with 95% Wilson CIs, collapse `unclear` → `no`, add
-  the exclude-`unclear` sensitivity analysis, McNemar for model comparisons, and the span
-  verification rate;
-- read gold from `../GOC-labeler/labels` via `src.labeling.collect.read_labels`, and never import
-  `src/sampling/` (stratum comes from the sample parquets).
+**CARC dev run done (job 13535035, A100, 2026-10-29):** 5 configs ok 30/30; gemma3:4b zero-shot
+ok 29/30, with 1 `truncated` (ROW_ID 472101, output hit `num_predict`, not context). Predictions
+copied to the PC `data/predictions/` (30 lines each); the old partial local runs are in
+`data/predictions_local_partial/` (not used). Prompt hashes: zero-shot `6a3991073695`, few-shot
+`c13e3a72a57a`.
 
-Then the dev loop: error triage → prompt revisions → `--freeze` → a single test run.
+**Dev scored (2026-10-29, `reports/eval_dev.json`, primary rule):**
+
+| config | TP/FP/FN/TN | sens | PPV | spec | F1 | spans verified (yes) |
+|---|---|---|---|---|---|---|
+| qwen3 few-shot | 8/9/0/13 | 1.00 | 0.47 | 0.59 | 0.64 | 15/17 |
+| llama3.1 zero-shot | 7/8/1/14 | 0.88 | 0.47 | 0.64 | 0.61 | 10/15 |
+| qwen3 zero-shot | 8/12/0/10 | 1.00 | 0.40 | 0.45 | 0.57 | 17/20 (+6/6 on no) |
+| llama3.1 few-shot | 5/5/3/17 | 0.62 | 0.50 | 0.77 | 0.56 | 8/10 |
+| gemma3 zero-shot | 8/21/0/1 | 1.00 | 0.28 | 0.05 | 0.43 | 19/29 |
+| gemma3 few-shot | 8/22/0/0 | 1.00 | 0.27 | 0.00 | 0.42 | 10/30 |
+
+- gemma3:4b says yes to almost everything; McNemar puts it below every 8b config (Holm p
+  0.004–0.035). The 8b configs are indistinguishable (all Holm p = 1.0).
+- The main error is **false positives**, not misses. Both gold-`unclear` notes get a yes from most
+  models.
+
+**▶ Resume here: dev error triage.**
+1. The user opens the FP / FN ROW_IDs locally in the labeling app, starting with
+   `reports/errors_dev_qwen3-8b_few_shot.csv`, and writes synthetic notes reproducing each pattern
+   (`tests/fixtures/synthetic_notes.jsonl`). Claude never reads the real notes.
+2. Open question for the user: drop gemma3:4b from further dev tuning?
+3. Claude proposes prompt revisions from the synthetic patterns → approval → rerun dev on CARC
+   (`git pull` there first) → re-score.
+
+Then: `--freeze` → a single test run (test_a + test_b) → `--set combined` with pre-named `--pair`s.
 - Dev has only 8 positives, so prompt tuning will be noisy.
 - Full-pool silver labeling ≈ 2 days per config at ~2.5 s/note; subsample in Stage 6.
 
@@ -386,7 +422,7 @@ src/
   sampling/           # cues, strata, draw   ← never imported by eval
   labeling/           # Streamlit app, schema, assign, collect, export_kit
   llm/                # schema, prompts/, fewshot.jsonl (synthetic), notes, run, validate
-  eval/               # metrics, CIs, McNemar, error analysis (not started)
+  eval/               # metrics.py: CIs, McNemar, span rates, error ROW_IDs
   weak/               # silver labeling of the unlabeled pool (not started)
 tests/                # synthetic data only; fixtures/ for synthetic notes
 docs/labeling.md      # labeler guide (also the GOC-labeler README)
