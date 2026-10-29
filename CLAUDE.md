@@ -328,9 +328,24 @@ test_physician_b 50/50 (collected 2026-10-28; yes rate deliberately not inspecte
 test_b are frozen.
 
 **Stage 4 built** (see §5). Local dev runs stopped partway when the PC hard-powered-off
-(llama3.1 zero-shot 6/30, few-shot 14/30; others 3-note smoke runs only). **Next: set up CARC
-(`docs/carc.md`, repo at `~/GOC-pilot`) and rerun all 6 configs on dev there.** Smoke run spans:
-only 9/15 quotes verified, and models often give a quote with `no`.
+(Kernel-Power 41, no bugcheck; 4 earlier occurrences since June, so likely PSU / stability, not
+the code). Partial local predictions: llama3.1 zero-shot 6/30, few-shot 14/30, others 3-note smoke
+runs only. They are superseded by the CARC run and not used in eval. Smoke run spans: only 9/15
+quotes verified, and models often give a quote with `no`.
+
+**CARC set up (2026-10-28):**
+- Repo at `~/GOC-pilot` on Discovery (`dennisda`), cloned via a **read-only deploy key**
+  (`~/.ssh/id_ed25519_goc`, `Host github.com` entry in `~/.ssh/config`). Code flows PC → GitHub →
+  `git pull` on CARC; never push from CARC.
+- 4 parquets copied (sha256 verified): candidates, dev_sample, test_sample (= test_a),
+  test_b_sample. Repo and `data/` are `chmod 700`.
+- `carc_setup.sh` done: Python 3.11.9 `.venv`, Ollama 0.40.12 in `~/.local/ollama-0.40.12`, models
+  in `/scratch1/dennisda/ollama-models`, all 3 IDs match `slurm/models.txt`.
+- Account `xiangren_1987`. The `gpu` partition offers a100, a40, l40s, p100 and v100; we use
+  **a100** only.
+- **Dev job submitted on A100 (pending).** Next: check that every config reports
+  `skipped 0 | ok 30`, copy `data/predictions/` back to the PC (move the old local predictions
+  aside first), then design the eval.
 
 **▶ Resume here: eval design (`src/eval/metrics.py`).** Present the options and get approval
 before writing code. It must:
