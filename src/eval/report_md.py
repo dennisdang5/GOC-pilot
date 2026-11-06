@@ -1,0 +1,168 @@
+"""Render reports/eval_{set}.json as a readable markdown summary.
+
+Run from the repo root (after src.eval.metrics has written the JSON):
+  python -m src.eval.report_md --set dev
+
+Writes reports/results_{set}.md. Reads only the aggregate JSON: no labels, predictions or note
+text. False-positive / false-negative ROW_IDs in the JSON are left out of the markdown.
+"""
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+from src.eval.metrics import PARTS, REPORT_DIR, fmt
+
+VARIANT_TEXT = {
+    "primary": "gold `unclear` counted as `no`",
+    "exclude_unclear": "notes with gold `unclear` removed",
+    "strict": "a model `yes` without a verified evidence span counted as `no`",
+}
+
+
+def _f1(v: float | None) -> str:
+    return "NA" if v is None else f"{v:.2f}"
+
+
+def _pval(p: float) -> str:
+    return "<0.001" if p < 0.001 else f"{p:.3f}"
+
+
+def _table(header: list[str], rows: list[list]) -> list[str]:
+    out = ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
+    out += ["| " + " | ".join(str(c) for c in r) + " |" for r in rows]
+    return out
+
+
+def _ordered(configs: dict) -> list[str]:
+    """Configs sorted by primary F1, best first (NA last)."""
+    return sorted(configs, key=lambda c: -(configs[c]["primary"]["f1"] or -1))
+
+
+def _gold_text(g: dict) -> str:
+    return " · ".join(f"{k} {g.get(k, 0)}" for k in ("yes", "no", "unclear"))
+
+
+def render(r: dict) -> str:
+    cfgs = r["configs"]
+    order = _ordered(cfgs)
+    n_pos = r["gold"].get("yes", 0)
+    L = [f"# Results: {r['set']} set", ""]
+
+    L += ["## Sample", "",
+          f"- Notes: **{r['n']}**. Gold labels: {_gold_text(r['gold'])}."]
+    for s, g in r["gold_by_stratum"].items():
+        L.append(f"- `{s}`: {_gold_text(g)}.")
+    L += ["- The sample is deliberately enriched for GOC, so these rates do **not** describe "
+          "MIMIC-III as a whole.", ""]
+
+    L += ["## Main results (primary rule)", "",
+          f"Rule: {VARIANT_TEXT['primary']}. Failed model calls count as `no`. "
+          "Proportions show the estimate and its 95% Wilson CI. Rows are sorted by F1.", ""]
+    L += _table(
+        ["config", "TP / FP / FN / TN", "sensitivity", "PPV", "specificity", "F1", "failures"],
+        [[f"`{c}`", "{tp} / {fp} / {fn} / {tn}".format(**cfgs[c]["primary"]),
+          fmt(cfgs[c]["primary"]["sensitivity"]), fmt(cfgs[c]["primary"]["ppv"]),
+          fmt(cfgs[c]["primary"]["specificity"]), _f1(cfgs[c]["primary"]["f1"]),
+          cfgs[c]["failures"]["n"]] for c in order])
+    fails = {c: s["failures"]["by_type"] for c, s in cfgs.items() if s["failures"]["n"]}
+    if fails:
+        L += ["", "Failures by type: " + "; ".join(
+            f"`{c}` " + ", ".join(f"{t} {len(ids)}" for t, ids in bt.items())
+            for c, bt in fails.items()) + "."]
+    L.append("")
+
+    def breakdown(key: str, title: str) -> None:
+        groups = sorted({g for s in cfgs.values() for g in (s[key] or {})})
+        if not groups:
+            return
+        L.extend([f"## {title} (primary rule)", "",
+                  "`*` = fewer than 5 gold positives in that group, so its sensitivity is "
+                  "barely informative.", ""])
+        rows = []
+        for c in order:
+            for g in groups:
+                m = cfgs[c][key][g]
+                star = " *" if m.get("few_positives") else ""
+                rows.append([f"`{c}`", f"`{g}`{star}", "{tp} / {fp} / {fn} / {tn}".format(**m),
+                             fmt(m["sensitivity"]), fmt(m["ppv"]), fmt(m["specificity"])])
+        L.extend(_table(["config", "group", "TP / FP / FN / TN", "sensitivity", "PPV",
+                         "specificity"], rows))
+        L.append("")
+
+    breakdown("by_stratum", "By stratum")
+    breakdown("by_part", "By part")
+
+    L += ["## Sensitivity analyses", ""]
+    for v in ("exclude_unclear", "strict"):
+        L += [f"- **{v}**: {VARIANT_TEXT[v]}."]
+    L.append("")
+    rows = []
+    for c in order:
+        row = [f"`{c}`", _f1(cfgs[c]["primary"]["f1"])]
+        for v in ("exclude_unclear", "strict"):
+            m = cfgs[c][v]
+            row += [fmt(m["sensitivity"]), fmt(m["ppv"]), _f1(m["f1"])]
+        rows.append(row)
+    L += _table(["config", "F1 primary", "sens excl.", "PPV excl.", "F1 excl.",
+                 "sens strict", "PPV strict", "F1 strict"], rows)
+    L.append("")
+
+    L += ["## Evidence spans", "",
+          "Each quote the model gives is checked for an exact (whitespace-normalized, "
+          "case-sensitive) match in the note. Shown as verified / given.", ""]
+    L += _table(["config", "on `yes` answers", "on `no` answers"],
+                [[f"`{c}`", "{verified} / {spans}".format(**cfgs[c]["spans"]["yes"]),
+                  "{verified} / {spans}".format(**cfgs[c]["spans"]["no"])] for c in order])
+    L.append("")
+
+    mc = r["mcnemar"]
+    if mc["pairs"]:
+        tag = "exploratory, all pairs" if mc["exploratory"] else "pre-named pairs"
+        L += [f"## Model comparisons (exact McNemar, Holm-adjusted; {tag})", "",
+              "Counts are notes that only A or only B got right. Pairs with Holm p ≥ 0.05 "
+              "should be called comparable.", ""]
+        L += _table(["A", "B", "only A right", "only B right", "p", "Holm p", ""],
+                    [[f"`{p['a']}`", f"`{p['b']}`", p["only_a_correct"], p["only_b_correct"],
+                      _pval(p["p"]), _pval(p["p_holm"]),
+                      "significant" if p["p_holm"] < 0.05 else "comparable"]
+                     for p in mc["pairs"]])
+        L.append("")
+
+    L += ["## How to read this", "",
+          "- **Sensitivity**: share of gold-`yes` notes the model called `yes`.",
+          "- **PPV** (precision): share of the model's `yes` calls that are gold `yes`.",
+          "- **Specificity**: share of gold-`no` notes the model called `no`.",
+          "- **F1**: harmonic mean of sensitivity and PPV (point estimate only).",
+          "- **Wilson CI**: a 95% interval for a proportion that behaves well with small counts.",
+          "- **McNemar**: tests whether two models differ on the same notes. Holm adjusts for "
+          "testing many pairs.",
+          "- Accuracy is not reported. With mostly-`no` gold labels, a model that always says "
+          "`no` would look accurate while finding nothing.",
+          f"- Small sample: {r['n']} notes, {n_pos} gold positives. Intervals are wide and "
+          "single-note changes move the point estimates a lot."]
+    if r["set"] == "dev":
+        L.append("- Dev is for prompt tuning and error inspection. It is not a reportable "
+                 "result.")
+    L.append("")
+    return "\n".join(L)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--set", dest="set_name", required=True, choices=list(PARTS))
+    ap.add_argument("--reports", type=Path, default=REPORT_DIR)
+    args = ap.parse_args()
+    src = args.reports / f"eval_{args.set_name}.json"
+    if not src.exists():
+        print(f"missing {src.name}; run python -m src.eval.metrics --set {args.set_name} first")
+        return 1
+    out = args.reports / f"results_{args.set_name}.md"
+    out.write_text(render(json.loads(src.read_text(encoding="utf-8"))), encoding="utf-8")
+    print(f"wrote reports/{out.name}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
