@@ -51,9 +51,25 @@ def test_sections_and_flags():
     for heading in ("## Main results", "## By stratum", "## Sensitivity analyses",
                     "## Evidence spans", "## Model comparisons", "## How to read this"):
         assert heading in md
-    assert "`cues_missing` *" in md
     assert "comparable" in md
     assert "## By part" not in md
+
+
+def test_dev_strata_compact_one_row_per_config():
+    md = render(REPORT)
+    sec = md[md.index("## By stratum"):md.index("## Sensitivity analyses")]
+    rows = [ln for ln in sec.splitlines() if ln.startswith("| `")]
+    assert len(rows) == 2
+    good = next(ln for ln in rows if "good_few_shot" in ln)
+    assert "2 / 1 / 0 / 3" in good and "0 / 0 / 1 / 2" in good  # both strata on one row
+    assert "`cues_missing` has fewer than 5" in sec
+
+
+def test_test_set_keeps_full_strata_table():
+    md = render({**REPORT, "set": "test_a"})
+    sec = md[md.index("## By stratum"):md.index("## Sensitivity analyses")]
+    assert "`cues_missing` *" in sec
+    assert "| config | group |" in sec
 
 
 def test_no_row_ids():

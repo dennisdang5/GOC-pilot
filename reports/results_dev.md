@@ -24,22 +24,16 @@ Failures by type: `gemma3-4b_zero_shot` truncated 1.
 
 ## By stratum (primary rule)
 
-`*` = fewer than 5 gold positives in that group, so its sensitivity is barely informative.
+Shows where the false positives fall. Per-stratum sensitivity and PPV are omitted: `cues_missing` has fewer than 5 gold positives.
 
-| config | group | TP / FP / FN / TN | sensitivity | PPV | specificity |
-|---|---|---|---|---|---|
-| `qwen3-8b_few_shot` | `cues_missing` * | 1 / 0 / 0 / 8 | 1.00 (0.21-1.00) | 1.00 (0.21-1.00) | 1.00 (0.68-1.00) |
-| `qwen3-8b_few_shot` | `cues_present` | 7 / 9 / 0 / 5 | 1.00 (0.65-1.00) | 0.44 (0.23-0.67) | 0.36 (0.16-0.61) |
-| `llama3.1-8b_zero_shot` | `cues_missing` * | 1 / 0 / 0 / 8 | 1.00 (0.21-1.00) | 1.00 (0.21-1.00) | 1.00 (0.68-1.00) |
-| `llama3.1-8b_zero_shot` | `cues_present` | 6 / 8 / 1 / 6 | 0.86 (0.49-0.97) | 0.43 (0.21-0.67) | 0.43 (0.21-0.67) |
-| `qwen3-8b_zero_shot` | `cues_missing` * | 1 / 1 / 0 / 7 | 1.00 (0.21-1.00) | 0.50 (0.09-0.91) | 0.88 (0.53-0.98) |
-| `qwen3-8b_zero_shot` | `cues_present` | 7 / 11 / 0 / 3 | 1.00 (0.65-1.00) | 0.39 (0.20-0.61) | 0.21 (0.08-0.48) |
-| `llama3.1-8b_few_shot` | `cues_missing` * | 0 / 0 / 1 / 8 | 0.00 (0.00-0.79) | NA | 1.00 (0.68-1.00) |
-| `llama3.1-8b_few_shot` | `cues_present` | 5 / 5 / 2 / 9 | 0.71 (0.36-0.92) | 0.50 (0.24-0.76) | 0.64 (0.39-0.84) |
-| `gemma3-4b_zero_shot` | `cues_missing` * | 1 / 7 / 0 / 1 | 1.00 (0.21-1.00) | 0.12 (0.02-0.47) | 0.12 (0.02-0.47) |
-| `gemma3-4b_zero_shot` | `cues_present` | 7 / 14 / 0 / 0 | 1.00 (0.65-1.00) | 0.33 (0.17-0.55) | 0.00 (0.00-0.22) |
-| `gemma3-4b_few_shot` | `cues_missing` * | 1 / 8 / 0 / 0 | 1.00 (0.21-1.00) | 0.11 (0.02-0.43) | 0.00 (0.00-0.32) |
-| `gemma3-4b_few_shot` | `cues_present` | 7 / 14 / 0 / 0 | 1.00 (0.65-1.00) | 0.33 (0.17-0.55) | 0.00 (0.00-0.22) |
+| config | `cues_present` TP / FP / FN / TN | `cues_present` specificity | `cues_missing` TP / FP / FN / TN | `cues_missing` specificity |
+|---|---|---|---|---|
+| `qwen3-8b_few_shot` | 7 / 9 / 0 / 5 | 0.36 (0.16-0.61) | 1 / 0 / 0 / 8 | 1.00 (0.68-1.00) |
+| `llama3.1-8b_zero_shot` | 6 / 8 / 1 / 6 | 0.43 (0.21-0.67) | 1 / 0 / 0 / 8 | 1.00 (0.68-1.00) |
+| `qwen3-8b_zero_shot` | 7 / 11 / 0 / 3 | 0.21 (0.08-0.48) | 1 / 1 / 0 / 7 | 0.88 (0.53-0.98) |
+| `llama3.1-8b_few_shot` | 5 / 5 / 2 / 9 | 0.64 (0.39-0.84) | 0 / 0 / 1 / 8 | 1.00 (0.68-1.00) |
+| `gemma3-4b_zero_shot` | 7 / 14 / 0 / 0 | 0.00 (0.00-0.22) | 1 / 7 / 0 / 1 | 0.12 (0.02-0.47) |
+| `gemma3-4b_few_shot` | 7 / 14 / 0 / 0 | 0.00 (0.00-0.22) | 1 / 8 / 0 / 0 | 0.00 (0.00-0.32) |
 
 ## Sensitivity analyses
 

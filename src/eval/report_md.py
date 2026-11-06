@@ -44,6 +44,32 @@ def _gold_text(g: dict) -> str:
     return " · ".join(f"{k} {g.get(k, 0)}" for k in ("yes", "no", "unclear"))
 
 
+def _compact_strata(cfgs: dict, order: list[str]) -> list[str]:
+    """One row per config: counts and specificity per stratum (no per-stratum sens / PPV)."""
+    rank = {"cues_present": 0, "cues_missing": 1}
+    strata = sorted({g for s in cfgs.values() for g in (s["by_stratum"] or {})},
+                    key=lambda g: (rank.get(g, 2), g))
+    if not strata:
+        return []
+    few = [g for g in strata
+           if any(cfgs[c]["by_stratum"][g].get("few_positives") for c in cfgs)]
+    note = "Shows where the false positives fall."
+    if few:
+        note += (" Per-stratum sensitivity and PPV are omitted: "
+                 + ", ".join(f"`{g}`" for g in few) + " has fewer than 5 gold positives.")
+    header = ["config"]
+    for g in strata:
+        header += [f"`{g}` TP / FP / FN / TN", f"`{g}` specificity"]
+    rows = []
+    for c in order:
+        row = [f"`{c}`"]
+        for g in strata:
+            m = cfgs[c]["by_stratum"][g]
+            row += ["{tp} / {fp} / {fn} / {tn}".format(**m), fmt(m["specificity"])]
+        rows.append(row)
+    return ["## By stratum (primary rule)", "", note, ""] + _table(header, rows) + [""]
+
+
 def render(r: dict) -> str:
     cfgs = r["configs"]
     order = _ordered(cfgs)
@@ -91,7 +117,10 @@ def render(r: dict) -> str:
                          "specificity"], rows))
         L.append("")
 
-    breakdown("by_stratum", "By stratum")
+    if r["set"] == "dev":
+        L.extend(_compact_strata(cfgs, order))
+    else:
+        breakdown("by_stratum", "By stratum")
     breakdown("by_part", "By part")
 
     L += ["## Sensitivity analyses", ""]
