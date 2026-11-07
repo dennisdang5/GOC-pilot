@@ -5,6 +5,9 @@ Run from the repo root (after src.eval.metrics has written the JSON):
 
 Writes reports/results_{set}.md. Reads only the aggregate JSON: no labels, predictions or note
 text. False-positive / false-negative ROW_IDs in the JSON are left out of the markdown.
+
+A hand-written summary between SUMMARY_START and SUMMARY_END in the existing results file is
+kept verbatim (placed under the title) when the file is re-rendered.
 """
 
 import argparse
@@ -13,6 +16,9 @@ import sys
 from pathlib import Path
 
 from src.eval.metrics import PARTS, REPORT_DIR, fmt
+
+SUMMARY_START = "<!-- summary:start -->"
+SUMMARY_END = "<!-- summary:end -->"
 
 VARIANT_TEXT = {
     "primary": "gold `unclear` counted as `no`",
@@ -70,11 +76,21 @@ def _compact_strata(cfgs: dict, order: list[str]) -> list[str]:
     return ["## By stratum (primary rule)", "", note, ""] + _table(header, rows) + [""]
 
 
-def render(r: dict) -> str:
+def extract_summary(md: str) -> str | None:
+    """The hand-written block (markers included) from an existing results file, or None."""
+    i, j = md.find(SUMMARY_START), md.find(SUMMARY_END)
+    if i < 0 or j < i:
+        return None
+    return md[i:j + len(SUMMARY_END)]
+
+
+def render(r: dict, summary: str | None = None) -> str:
     cfgs = r["configs"]
     order = _ordered(cfgs)
     n_pos = r["gold"].get("yes", 0)
     L = [f"# Results: {r['set']} set", ""]
+    if summary:
+        L += [summary, ""]
 
     L += ["## Sample", "",
           f"- Notes: **{r['n']}**. Gold labels: {_gold_text(r['gold'])}."]
@@ -172,8 +188,9 @@ def render(r: dict) -> str:
           f"- Small sample: {r['n']} notes, {n_pos} gold positives. Intervals are wide and "
           "single-note changes move the point estimates a lot."]
     if r["set"] == "dev":
-        L.append("- Dev is for prompt tuning and error inspection. It is not a reportable "
-                 "result.")
+        L += ["- Dev labels come from 5 team members, one labeler per note, with no second "
+              "opinion.",
+              "- Dev is for prompt tuning and error inspection. It is not a reportable result."]
     L.append("")
     return "\n".join(L)
 
@@ -188,8 +205,12 @@ def main() -> int:
         print(f"missing {src.name}; run python -m src.eval.metrics --set {args.set_name} first")
         return 1
     out = args.reports / f"results_{args.set_name}.md"
-    out.write_text(render(json.loads(src.read_text(encoding="utf-8"))), encoding="utf-8")
+    summary = extract_summary(out.read_text(encoding="utf-8")) if out.exists() else None
+    out.write_text(render(json.loads(src.read_text(encoding="utf-8")), summary),
+                   encoding="utf-8")
     print(f"wrote reports/{out.name}")
+    if summary:
+        print("kept the hand-written summary block; check it still matches the new numbers")
     return 0
 
 

@@ -1,6 +1,6 @@
 """Markdown rendering of an eval report (synthetic numbers only)."""
 
-from src.eval.report_md import render
+from src.eval.report_md import SUMMARY_END, SUMMARY_START, extract_summary, render
 
 
 def _p(k, n):
@@ -76,3 +76,16 @@ def test_no_row_ids():
     md = render(REPORT)
     for rid in ("987654", "876543", "765432"):
         assert rid not in md
+
+
+def test_summary_block_kept_on_rerender():
+    block = f"{SUMMARY_START}\n## Summary\n\n- hand-written finding\n{SUMMARY_END}"
+    old = render(REPORT, block)
+    assert old.index(block) < old.index("## Sample")
+    assert extract_summary(old) == block
+    assert render(REPORT, extract_summary(old)) == old
+
+
+def test_no_summary_block():
+    md = render(REPORT)
+    assert extract_summary(md) is None and SUMMARY_START not in md

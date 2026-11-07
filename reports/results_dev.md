@@ -1,5 +1,61 @@
 # Results: dev set
 
+<!-- summary:start -->
+## Summary
+
+*Hand-written for the 2026-10-29 dev run (CARC job 13535035). This block is kept as-is when
+`report_md.py` re-renders the file. After a new run, check it against the tables below.*
+
+**What was tested.** 3 local models (`qwen3:8b`, `llama3.1:8b`, `gemma3:4b`) × 2 prompting
+styles (zero-shot: instructions only; few-shot: plus 3 synthetic worked examples) = 6 configs.
+Each config answers yes / no for each of the 30 dev notes and quotes the sentence that supports
+its answer. Gold labels are 8 yes, 20 no and 2 unclear. Unclear counts as no, so there are
+8 positives and 22 negatives.
+
+**Findings**
+
+1. **The models find GOC notes. The problem is false alarms.** Four of six configs find all
+   8 positives, but even the best ones are right only about half the time when they say yes
+   (PPV ≈ 0.5). The main thing to fix in prompt tuning is too many yes answers, not missed notes.
+2. **qwen3 few-shot is best on paper, but the 8b configs are tied.** qwen3 few-shot has the
+   highest F1 (0.64), with llama3.1 zero-shot next (0.61). McNemar finds no difference between
+   any two of the four 8b configs (all Holm p = 1.0). The right reading is "comparable on dev":
+   30 notes is too few to separate them.
+3. **gemma3:4b says yes to almost everything** (29/30 zero-shot, 30/30 few-shot; specificity
+   0.05 / 0.00). This is the only statistically clear result: every 8b config beats it (Holm p
+   0.004–0.035). Whether to drop it from further tuning is still undecided.
+4. **Whether few-shot helps depends on the model.** For qwen3, the examples cut false alarms from
+   12 to 9 and it still finds all 8 positives. For llama3.1, they made it more cautious: false
+   alarms fell from 8 to 5, but misses rose from 1 to 3. Neither difference is significant.
+5. **False alarms come from notes that use GOC vocabulary.** Almost all of them are in
+   `cues_present` (all 9 of qwen3 few-shot's). In `cues_missing` the 8b configs have 0–1 false
+   alarms. The models react to words like *palliative*, *family meeting* or *hospice* even when
+   the note records no conversation with the patient or family (e.g. "palliative care
+   consulted", "will hold family meeting tomorrow", or clinicians talking among themselves).
+   The labeling rules call these **no**, and this is the main target for the next prompt
+   revision. The cues are a sampling tool only and are never used for scoring.
+6. **Some false alarms are the 2 unclear notes.** Most configs say yes to both. Dropping them
+   (exclude_unclear) raises qwen3 few-shot from PPV 0.47 / F1 0.64 to PPV 0.53 / F1 0.70.
+7. **The 8b models' quotes are mostly real.** On yes answers, 67–88% of the 8b quotes are found
+   in the note, versus 66% for gemma3 zero-shot and 33% for gemma3 few-shot. Under the strict
+   rule each 8b config loses 1–2 positives (qwen3 few-shot: 8/8 → 7/8, F1 0.64 → 0.61). gemma3
+   few-shot *improves* under strict (F1 0.42 → 0.56) because its made-up quotes were mostly on
+   wrong yes answers. qwen3 zero-shot is the only config that also quotes text on its no answers
+   (6).
+8. **Reliability.** 179 of 180 calls succeeded. One gemma3 zero-shot call hit the output-length
+   limit and is counted as no.
+
+**Next steps**
+
+1. Error triage: review the false-positive and false-negative notes locally (start with qwen3
+   few-shot) and write synthetic notes that reproduce each pattern.
+2. Revise the prompt so it tells *a mention of GOC topics* apart from *a documented conversation
+   with the patient or family*.
+3. Rerun dev on CARC and re-score.
+4. Decide whether to drop gemma3:4b.
+5. Freeze the prompts, then run the test sets once.
+<!-- summary:end -->
+
 ## Sample
 
 - Notes: **30**. Gold labels: yes 8 · no 20 · unclear 2.
@@ -94,4 +150,5 @@ Counts are notes that only A or only B got right. Pairs with Holm p ≥ 0.05 sho
 - **McNemar**: tests whether two models differ on the same notes. Holm adjusts for testing many pairs.
 - Accuracy is not reported. With mostly-`no` gold labels, a model that always says `no` would look accurate while finding nothing.
 - Small sample: 30 notes, 8 gold positives. Intervals are wide and single-note changes move the point estimates a lot.
+- Dev labels come from 5 team members, one labeler per note, with no second opinion.
 - Dev is for prompt tuning and error inspection. It is not a reportable result.
