@@ -394,6 +394,10 @@ Files:
   - `reports/eval_{set}.json` (aggregates),
   - `reports/errors_{set}_{config}.csv` (FP / FN ROW_IDs only; gitignored by `*.csv`).
 - `src/eval/report_md.py --set SET` renders that JSON as `reports/results_{set}.md` (no ROW_IDs).
+  - A hand-written block between `<!-- summary:start -->` and `<!-- summary:end -->` in the
+    existing file is kept verbatim under the title on re-render. The script prints a reminder
+    when it keeps one.
+  - `results_dev.md` uses it for the run line (date, CARC job). Update it by hand after a rerun.
 
 Decisions (user-approved 2026-10-29):
 - Gold comes from `../GOC-labeler/labels` via `read_labels`, opening only that set's label files.
