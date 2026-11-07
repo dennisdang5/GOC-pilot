@@ -404,8 +404,11 @@ Files:
   - A hand-written block between `<!-- summary:start -->` and `<!-- summary:end -->` in the
     existing file is kept verbatim under the title on re-render. The script prints a reminder
     when it keeps one.
-  - `results_dev.md` uses it for the run line (date, CARC job) and a hand-written Findings +
-    Takeaways summary. Update both by hand after a rerun.
+  - `results_dev.md` uses it for the run line and a hand-written Findings + Takeaways summary.
+    Update both by hand after a rerun.
+  - The run line holds only the run date, CARC job and GPU (e.g. "Run: 2026-10-29, CARC job
+    13535035 (A100)."). Label revisions and re-scores are not noted there; they go in the
+    decision log (§3.6).
   - Table headers read "sensitivity (recall)" and "PPV (precision)" (same metrics, no extra
     columns).
 
