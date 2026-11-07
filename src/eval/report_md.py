@@ -103,7 +103,8 @@ def render(r: dict, summary: str | None = None) -> str:
           f"Rule: {VARIANT_TEXT['primary']}. Failed model calls count as `no`. "
           "Proportions show the estimate and its 95% Wilson CI. Rows are sorted by F1.", ""]
     L += _table(
-        ["config", "TP / FP / FN / TN", "sensitivity", "PPV", "specificity", "F1", "failures"],
+        ["config", "TP / FP / FN / TN", "sensitivity (recall)", "PPV", "specificity", "F1",
+         "failures"],
         [[f"`{c}`", "{tp} / {fp} / {fn} / {tn}".format(**cfgs[c]["primary"]),
           fmt(cfgs[c]["primary"]["sensitivity"]), fmt(cfgs[c]["primary"]["ppv"]),
           fmt(cfgs[c]["primary"]["specificity"]), _f1(cfgs[c]["primary"]["f1"]),
@@ -129,7 +130,7 @@ def render(r: dict, summary: str | None = None) -> str:
                 star = " *" if m.get("few_positives") else ""
                 rows.append([f"`{c}`", f"`{g}`{star}", "{tp} / {fp} / {fn} / {tn}".format(**m),
                              fmt(m["sensitivity"]), fmt(m["ppv"]), fmt(m["specificity"])])
-        L.extend(_table(["config", "group", "TP / FP / FN / TN", "sensitivity", "PPV",
+        L.extend(_table(["config", "group", "TP / FP / FN / TN", "sensitivity (recall)", "PPV",
                          "specificity"], rows))
         L.append("")
 
@@ -150,8 +151,8 @@ def render(r: dict, summary: str | None = None) -> str:
             m = cfgs[c][v]
             row += [fmt(m["sensitivity"]), fmt(m["ppv"]), _f1(m["f1"])]
         rows.append(row)
-    L += _table(["config", "F1 primary", "sens excl.", "PPV excl.", "F1 excl.",
-                 "sens strict", "PPV strict", "F1 strict"], rows)
+    L += _table(["config", "F1 primary", "sens/recall excl.", "PPV excl.", "F1 excl.",
+                 "sens/recall strict", "PPV strict", "F1 strict"], rows)
     L.append("")
 
     L += ["## Evidence spans", "",
@@ -176,7 +177,7 @@ def render(r: dict, summary: str | None = None) -> str:
         L.append("")
 
     L += ["## How to read this", "",
-          "- **Sensitivity**: share of gold-`yes` notes the model called `yes`.",
+          "- **Sensitivity** (= recall): share of gold-`yes` notes the model called `yes`.",
           "- **PPV** (precision): share of the model's `yes` calls that are gold `yes`.",
           "- **Specificity**: share of gold-`no` notes the model called `no`.",
           "- **F1**: harmonic mean of sensitivity and PPV (point estimate only).",
