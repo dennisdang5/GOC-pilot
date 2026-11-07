@@ -397,7 +397,9 @@ Files:
   - A hand-written block between `<!-- summary:start -->` and `<!-- summary:end -->` in the
     existing file is kept verbatim under the title on re-render. The script prints a reminder
     when it keeps one.
-  - `results_dev.md` uses it for the run line (date, CARC job). Update it by hand after a rerun.
+  - `results_dev.md` uses it for the run line (date, CARC job) and a hand-written Findings +
+    Takeaways summary. Update both by hand after a rerun.
+  - Sensitivity is labeled "sensitivity (recall)" in the tables (same metric, no extra column).
 
 Decisions (user-approved 2026-10-29):
 - Gold comes from `../GOC-labeler/labels` via `read_labels`, opening only that set's label files.
@@ -496,7 +498,7 @@ Decisions (user-approved 2026-10-29):
 - **Evidence span**: the verbatim quote a model gives for its answer. It is "verified" if it
   appears exactly in the note.
 - **Primary / exclude_unclear / strict**: scoring variants (§4.5).
-- **Sensitivity**: share of true GOC notes the model finds. **PPV**: share of the model's yes
+- **Sensitivity** (= recall): share of true GOC notes the model finds. **PPV**: share of the model's yes
   calls that are right. **Specificity**: share of non-GOC notes the model correctly calls no.
   **F1**: harmonic mean of sensitivity and PPV.
 - **Wilson CI**: 95% confidence interval for a proportion, well-behaved at small n.
