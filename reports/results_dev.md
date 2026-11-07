@@ -1,8 +1,7 @@
 # Results: dev set
 
 <!-- summary:start -->
-Run: 2026-10-29, CARC job 13535035 (A100). Re-scored 2026-11-06 after 2 dev labels were
-revised (one to yes, one to no).
+Run: 2026-10-29, CARC job 13535035 (A100).
 
 ## Summary
 
