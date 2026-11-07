@@ -89,3 +89,14 @@ def test_summary_block_kept_on_rerender():
 def test_no_summary_block():
     md = render(REPORT)
     assert extract_summary(md) is None and SUMMARY_START not in md
+
+
+def test_unclear_omitted_when_none():
+    md = render(REPORT)  # synthetic gold has no `unclear`
+    assert "unclear" not in md and "excl." not in md
+    assert "| config | F1 primary | sens/recall strict |" in md
+
+
+def test_unclear_kept_when_present():
+    md = render({**REPORT, "gold": {"yes": 2, "no": 3, "unclear": 1}})
+    assert "unclear 1" in md and "exclude_unclear" in md and "F1 excl." in md

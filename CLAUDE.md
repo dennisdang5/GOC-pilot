@@ -203,6 +203,13 @@ order.
   test freeze, for sampling design only. Only aggregate yes counts by stratum / category / cue were
   inspected: no ROW_IDs, no text, no model output. The regex is not under evaluation. Labeled
   yield of the chosen rule: 8/16.
+- **2026-11-06, dev label revisions.** After dev was scored and the model outputs seen, the user
+  re-read the 2 dev notes labeled `unclear` and resolved them: ROW_ID 408701 (dev_E) → yes, and
+  ROW_ID 654562 (dev_B) → no. The change was appended to the original labelers' files
+  (`dev_E_NS.jsonl`, `dev_B_WB.jsonl`) **with the original labelers' initials**, at the user's
+  choice, so this entry is the only record that the user made the change. The original `unclear`
+  lines remain as history (the latest line wins). Dev only: no test labels were opened. Dev now
+  has 9 yes · 21 no · 0 unclear.
 
 ---
 
@@ -409,6 +416,8 @@ Decisions (user-approved 2026-10-29):
   - **primary**: `unclear` → no.
   - **exclude_unclear**: notes with gold `unclear` dropped.
   - **strict**: a `yes` without a verified span → no.
+  - When a set has no gold `unclear` (dev, since 2026-11-06), `report_md.py` omits the unclear
+    rule, unclear counts and exclude_unclear columns. They still appear for sets that have any.
 - Failed predictions (`parse`, `truncated`) → no, with a failure count per config.
   `num_predict` stays 400.
 - Sensitivity, PPV and specificity with Wilson 95% CIs. F1 is a point estimate only (default
@@ -427,7 +436,7 @@ Decisions (user-approved 2026-10-29):
 ## 5. Status and next steps (2026-11-05)
 
 **Labels (all in):**
-- dev 30/30 (5 members; 8 yes, 2 unclear).
+- dev 30/30 (5 members; 9 yes, 21 no, 0 unclear after the 2026-11-06 revisions, §3.6).
 - test_physician 50/50 (9 yes).
 - test_physician_b 50/50, collected 2026-10-28. The yes rate was deliberately not inspected.
 - test_a and test_b are frozen.
@@ -449,15 +458,14 @@ Decisions (user-approved 2026-10-29):
 - Predictions are in `data/predictions/` on the PC (30 lines each).
 - Prompt hashes: zero-shot `6a3991073695`, few-shot `c13e3a72a57a`.
 
-**Dev results (2026-10-29).** Full tables are in
+**Dev results (run 2026-10-29, re-scored 2026-11-06).** Full tables are in
 [`reports/results_dev.md`](reports/results_dev.md), rendered from `reports/eval_dev.json`.
-- Best by F1: qwen3 few-shot (sens 1.00, PPV 0.47, spec 0.59, F1 0.64) and llama3.1 zero-shot
-  (F1 0.61). The 8b configs are statistically indistinguishable (all Holm p = 1.0).
+- Best by F1: qwen3 few-shot (sens 1.00, PPV 0.53, spec 0.62, F1 0.69) and llama3.1 zero-shot
+  (F1 0.67). The 8b configs are statistically indistinguishable (all Holm p = 1.0).
 - gemma3:4b says yes to almost everything (spec 0.00–0.05). McNemar puts it below every 8b config
   (Holm p 0.004–0.035).
-- The main error is **false positives**, not misses. Both gold-`unclear` notes get a yes from
-  most models.
-- Dev has only 8 positives, so prompt tuning will be noisy.
+- The main error is **false positives**, not misses, almost all in `cues_present` notes.
+- Dev has only 9 positives, so prompt tuning will be noisy.
 
 **▶ Resume here: dev error triage.**
 1. The user opens the FP / FN ROW_IDs locally in the labeling app, starting with

@@ -46,8 +46,9 @@ def _ordered(configs: dict) -> list[str]:
     return sorted(configs, key=lambda c: -(configs[c]["primary"]["f1"] or -1))
 
 
-def _gold_text(g: dict) -> str:
-    return " · ".join(f"{k} {g.get(k, 0)}" for k in ("yes", "no", "unclear"))
+def _gold_text(g: dict, unclear: bool = True) -> str:
+    keys = ("yes", "no", "unclear") if unclear else ("yes", "no")
+    return " · ".join(f"{k} {g.get(k, 0)}" for k in keys)
 
 
 def _compact_strata(cfgs: dict, order: list[str]) -> list[str]:
@@ -88,19 +89,23 @@ def render(r: dict, summary: str | None = None) -> str:
     cfgs = r["configs"]
     order = _ordered(cfgs)
     n_pos = r["gold"].get("yes", 0)
+    # With no gold `unclear` labels, the unclear rule and exclude_unclear are no-ops: omit them.
+    has_unclear = r["gold"].get("unclear", 0) > 0
+    variants = ("exclude_unclear", "strict") if has_unclear else ("strict",)
     L = [f"# Results: {r['set']} set", ""]
     if summary:
         L += [summary, ""]
 
     L += ["## Sample", "",
-          f"- Notes: **{r['n']}**. Gold labels: {_gold_text(r['gold'])}."]
+          f"- Notes: **{r['n']}**. Gold labels: {_gold_text(r['gold'], has_unclear)}."]
     for s, g in r["gold_by_stratum"].items():
-        L.append(f"- `{s}`: {_gold_text(g)}.")
+        L.append(f"- `{s}`: {_gold_text(g, has_unclear)}.")
     L += ["- The sample is deliberately enriched for GOC, so these rates do **not** describe "
           "MIMIC-III as a whole.", ""]
 
+    rule = f"Rule: {VARIANT_TEXT['primary']}. " if has_unclear else ""
     L += ["## Main results (primary rule)", "",
-          f"Rule: {VARIANT_TEXT['primary']}. Failed model calls count as `no`. "
+          f"{rule}Failed model calls count as `no`. "
           "Proportions show the estimate and its 95% Wilson CI. Rows are sorted by F1.", ""]
     L += _table(
         ["config", "TP / FP / FN / TN", "sensitivity (recall)", "PPV (precision)",
@@ -141,18 +146,21 @@ def render(r: dict, summary: str | None = None) -> str:
     breakdown("by_part", "By part")
 
     L += ["## Sensitivity analyses", ""]
-    for v in ("exclude_unclear", "strict"):
+    for v in variants:
         L += [f"- **{v}**: {VARIANT_TEXT[v]}."]
     L.append("")
     rows = []
     for c in order:
         row = [f"`{c}`", _f1(cfgs[c]["primary"]["f1"])]
-        for v in ("exclude_unclear", "strict"):
+        for v in variants:
             m = cfgs[c][v]
             row += [fmt(m["sensitivity"]), fmt(m["ppv"]), _f1(m["f1"])]
         rows.append(row)
-    L += _table(["config", "F1 primary", "sens/recall excl.", "PPV/precision excl.", "F1 excl.",
-                 "sens/recall strict", "PPV/precision strict", "F1 strict"], rows)
+    short = {"exclude_unclear": "excl.", "strict": "strict"}
+    header = ["config", "F1 primary"]
+    for v in variants:
+        header += [f"sens/recall {short[v]}", f"PPV/precision {short[v]}", f"F1 {short[v]}"]
+    L += _table(header, rows)
     L.append("")
 
     L += ["## Evidence spans", "",
