@@ -103,8 +103,8 @@ def render(r: dict, summary: str | None = None) -> str:
           f"Rule: {VARIANT_TEXT['primary']}. Failed model calls count as `no`. "
           "Proportions show the estimate and its 95% Wilson CI. Rows are sorted by F1.", ""]
     L += _table(
-        ["config", "TP / FP / FN / TN", "sensitivity (recall)", "PPV", "specificity", "F1",
-         "failures"],
+        ["config", "TP / FP / FN / TN", "sensitivity (recall)", "PPV (precision)",
+         "specificity", "F1", "failures"],
         [[f"`{c}`", "{tp} / {fp} / {fn} / {tn}".format(**cfgs[c]["primary"]),
           fmt(cfgs[c]["primary"]["sensitivity"]), fmt(cfgs[c]["primary"]["ppv"]),
           fmt(cfgs[c]["primary"]["specificity"]), _f1(cfgs[c]["primary"]["f1"]),
@@ -130,8 +130,8 @@ def render(r: dict, summary: str | None = None) -> str:
                 star = " *" if m.get("few_positives") else ""
                 rows.append([f"`{c}`", f"`{g}`{star}", "{tp} / {fp} / {fn} / {tn}".format(**m),
                              fmt(m["sensitivity"]), fmt(m["ppv"]), fmt(m["specificity"])])
-        L.extend(_table(["config", "group", "TP / FP / FN / TN", "sensitivity (recall)", "PPV",
-                         "specificity"], rows))
+        L.extend(_table(["config", "group", "TP / FP / FN / TN", "sensitivity (recall)",
+                         "PPV (precision)", "specificity"], rows))
         L.append("")
 
     if r["set"] == "dev":
@@ -151,8 +151,8 @@ def render(r: dict, summary: str | None = None) -> str:
             m = cfgs[c][v]
             row += [fmt(m["sensitivity"]), fmt(m["ppv"]), _f1(m["f1"])]
         rows.append(row)
-    L += _table(["config", "F1 primary", "sens/recall excl.", "PPV excl.", "F1 excl.",
-                 "sens/recall strict", "PPV strict", "F1 strict"], rows)
+    L += _table(["config", "F1 primary", "sens/recall excl.", "PPV/precision excl.", "F1 excl.",
+                 "sens/recall strict", "PPV/precision strict", "F1 strict"], rows)
     L.append("")
 
     L += ["## Evidence spans", "",

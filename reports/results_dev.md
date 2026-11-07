@@ -51,7 +51,7 @@ tables after a new run.*
 
 Rule: gold `unclear` counted as `no`. Failed model calls count as `no`. Proportions show the estimate and its 95% Wilson CI. Rows are sorted by F1.
 
-| config | TP / FP / FN / TN | sensitivity (recall) | PPV | specificity | F1 | failures |
+| config | TP / FP / FN / TN | sensitivity (recall) | PPV (precision) | specificity | F1 | failures |
 |---|---|---|---|---|---|---|
 | `qwen3-8b_few_shot` | 8 / 9 / 0 / 13 | 1.00 (0.68-1.00) | 0.47 (0.26-0.69) | 0.59 (0.39-0.77) | 0.64 | 0 |
 | `llama3.1-8b_zero_shot` | 7 / 8 / 1 / 14 | 0.88 (0.53-0.98) | 0.47 (0.25-0.70) | 0.64 (0.43-0.80) | 0.61 | 0 |
@@ -80,7 +80,7 @@ Shows where the false positives fall. Per-stratum sensitivity and PPV are omitte
 - **exclude_unclear**: notes with gold `unclear` removed.
 - **strict**: a model `yes` without a verified evidence span counted as `no`.
 
-| config | F1 primary | sens/recall excl. | PPV excl. | F1 excl. | sens/recall strict | PPV strict | F1 strict |
+| config | F1 primary | sens/recall excl. | PPV/precision excl. | F1 excl. | sens/recall strict | PPV/precision strict | F1 strict |
 |---|---|---|---|---|---|---|---|
 | `qwen3-8b_few_shot` | 0.64 | 1.00 (0.68-1.00) | 0.53 (0.30-0.75) | 0.70 | 0.88 (0.53-0.98) | 0.47 (0.25-0.70) | 0.61 |
 | `llama3.1-8b_zero_shot` | 0.61 | 0.88 (0.53-0.98) | 0.54 (0.29-0.77) | 0.67 | 0.62 (0.31-0.86) | 0.50 (0.24-0.76) | 0.56 |

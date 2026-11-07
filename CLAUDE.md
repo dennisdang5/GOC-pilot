@@ -399,7 +399,8 @@ Files:
     when it keeps one.
   - `results_dev.md` uses it for the run line (date, CARC job) and a hand-written Findings +
     Takeaways summary. Update both by hand after a rerun.
-  - Sensitivity is labeled "sensitivity (recall)" in the tables (same metric, no extra column).
+  - Table headers read "sensitivity (recall)" and "PPV (precision)" (same metrics, no extra
+    columns).
 
 Decisions (user-approved 2026-10-29):
 - Gold comes from `../GOC-labeler/labels` via `read_labels`, opening only that set's label files.
