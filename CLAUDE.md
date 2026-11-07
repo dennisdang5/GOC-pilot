@@ -489,8 +489,6 @@ Decisions (user-approved 2026-10-29):
   - Partial local predictions: llama3.1 zero-shot 6/30, few-shot 14/30, others 3-note smoke runs
     only. They are in `data/predictions_local_partial/` and not used in eval.
   - In the smoke runs only 9/15 quotes were verified, and models often gave a quote with `no`.
-- **Housekeeping:** `../GOC-labeler` has uncommitted local edits to `.streamlit/config.toml` and
-  `src/ingest/load.py`. Ask the user whether to discard them or move them into this repo.
 
 ---
 
