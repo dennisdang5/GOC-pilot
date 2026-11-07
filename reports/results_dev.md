@@ -36,13 +36,6 @@ tables after a new run.*
   stop them from saying yes when GOC words appear without a documented conversation with the
   patient or family, for example "palliative care consulted", "will hold family meeting
   tomorrow", or clinicians talking among themselves.
-- **Carry both strategies forward, focusing on the 8b models.** Dev can't separate the 8b
-  configs, so pick the final configs on test with pre-named McNemar pairs, not on these point
-  estimates.
-- **gemma3:4b is a strong candidate to drop.** It doesn't follow the task at this size (still an
-  open decision).
-- **Keep the evidence-span check.** Verified quotes are a cheap sanity filter, and the strict
-  rule hurts the 8b models only slightly.
 - **Treat these numbers as directional.** With 8 positives, one note moves recall by about
   0.12. Reportable results come only from the frozen test sets.
 <!-- summary:end -->
