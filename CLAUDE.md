@@ -557,8 +557,6 @@ See `ARCHITECTURE.md` for the pipeline diagram, module contracts and repos.
 ### Environment
 - Python 3.12 in the PyCharm `.venv` (user approved 3.12 over 3.11). `uv` isn't installed;
   install with `.venv/Scripts/python.exe -m pip`.
-- On the Mac, `.venv` uses python.org 3.12 (`/Library/Frameworks/Python.framework`); Homebrew
-  3.12's pip is broken (expat mismatch). Install with `.venv/bin/python -m pip`.
 - Run modules from the repo root as `python -m src.<module>.<file>`. Tests:
   `python -m pytest tests`.
 - Installed: `duckdb`, `pandas`, `pyarrow`, `pydantic`, `scikit-learn`, `statsmodels`,
