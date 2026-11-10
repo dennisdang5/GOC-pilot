@@ -38,8 +38,8 @@ flowchart TD
         FREEZE[FROZEN prompt hashes] -.guards test sets.-> RUN
     end
 
-    subgraph EVAL["Stage 5 · Evaluation (planned)"]
-        GD --> TUNE[Dev loop<br/>error triage by stratum · category]
+    subgraph EVAL["Stage 5 · Evaluation"]
+        GD --> TUNE[Dev loop<br/>error triage viewer · synthetic patterns]
         PRED --> TUNE
         TUNE -->|revise| PROMPT
         TUNE -->|freeze| FROZEN[Frozen prompts]
@@ -88,13 +88,14 @@ Every stage reads from and writes to `data/`, which is gitignored. No stage prin
 | `llm/notes.py` | sample parquets, candidates | ROW_IDs per set, TEXT in memory | — |
 | `llm/run.py` | model, strategy, set (`dev \| test_a \| test_b`) | `predictions/{model}_{strategy}_{set}.jsonl` + `predictions/raw/` | counts, latency, error types, ROW_IDs |
 | `llm/validate.py` | prediction files | — (`span_verified` is filled by run) | n, errors, % spans verified |
+| `eval/metrics.py` | gold (that set's label files only) + predictions + sample strata | `reports/eval_{set}.json`, `reports/errors_{set}_{config}.csv` (ROW_IDs) | metrics, McNemar, ROW_IDs |
+| `eval/report_md.py` | `reports/eval_{set}.json` | `reports/results_{set}.md` (no ROW_IDs) | — |
+| `eval/triage_app.py` | dev gold + predictions + candidates (Streamlit, localhost, dev only) | `data/triage/dev_patterns.jsonl` (user's notes, gitignored) | — (UI only; never writes labels) |
 
 ### Planned (design not yet approved)
 
 | Module | Input | Output | Prints |
 |---|---|---|---|
-| `eval/metrics.py` | gold + predictions | `reports/{set}_metrics.json` | metrics table |
-| `eval/triage.py` | dev gold + predictions + strata | `reports/dev_errors.json` | errors by stratum, category |
 | `weak/silver.py` | pool ids, frozen config | `predictions/silver_pool.jsonl` | label distribution |
 
 ### Label record (human, `labeling/schema.py`)

@@ -33,7 +33,8 @@ back into the conversation: counts, rates, precision / recall, confusion matrice
 ROW_IDs.
 
 **Debugging against text** uses synthetic notes only:
-- `tests/fixtures/synthetic_notes.jsonl`: hand-written fake notes, safe to read (not created yet).
+- `tests/fixtures/synthetic_notes.jsonl`: hand-written fake notes, safe to read (not created
+  yet; format in §5).
 - Synthetic strings inside tests.
 - When a real note fails in an instructive way, the user writes a synthetic note that reproduces
   the pattern.
@@ -433,10 +434,18 @@ Decisions (user-approved 2026-10-29):
   - Test sets: only the pairs named with `--pair`, chosen before the test run.
 - Test sets are refused until `FROZEN` exists. A missing gold label or prediction stops the run.
 - Tests: `tests/test_eval_metrics.py` and `tests/test_report_md.py` (synthetic).
+- **Triage viewer** (`src/eval/triage_app.py`, built 2026-11-09): `streamlit run
+  src/eval/triage_app.py`. Localhost, **dev only** (hard-coded), never writes labels.
+  - Lists every dev note with ≥1 wrong config (primary rule), most-missed first, with a filter by
+    config. Shows the gold label, stratum, each config's answer / outcome / quote, and the note
+    with the quotes highlighted.
+  - A pattern box appends to `data/triage/dev_patterns.jsonl` (gitignored). Claude never reads it.
+  - On dev: 24 error notes (21 gold no, 3 gold yes); 7 are wrong in ≥5 of 6 configs.
+  - Tests: `tests/test_triage_app.py` (synthetic).
 
 ---
 
-## 5. Status and next steps (2026-11-05)
+## 5. Status and next steps (2026-11-09)
 
 **Labels (all in):**
 - dev 30/30 (5 members; 9 yes, 21 no, 0 unclear after the 2026-11-06 revisions, §3.6).
@@ -471,10 +480,13 @@ Decisions (user-approved 2026-10-29):
 - Dev has only 9 positives, so prompt tuning will be noisy.
 
 **▶ Resume here: dev error triage.**
-1. The user opens the FP / FN ROW_IDs locally in the labeling app, starting with
-   `reports/errors_dev_qwen3-8b_few_shot.csv`, and writes synthetic notes reproducing each
-   pattern (`tests/fixtures/synthetic_notes.jsonl`). Claude never reads the real notes.
-2. Open question for the user: drop gemma3:4b from further dev tuning?
+1. The user goes through the errors in the triage viewer (start with the notes most configs got
+   wrong, then `qwen3-8b_few_shot`), groups them into patterns, and writes one synthetic note per
+   pattern in `tests/fixtures/synthetic_notes.jsonl`. Claude never reads the real notes.
+   - Format (user decision 2026-11-09), one JSON line each: `id` (`syn_001`), `pattern`
+     (snake_case tag), `expected_goc` (yes / no), `error_type` (FP / FN), `text`. No ROW_IDs.
+     Checked by `tests/test_synthetic_fixtures.py`.
+2. **gemma3:4b stays** in all runs and results (user decision 2026-11-09).
 3. Claude proposes prompt revisions from the synthetic patterns → approval → rerun dev on CARC
    (`git pull` there first) → re-score.
 
@@ -531,7 +543,8 @@ src/
   sampling/           # cues, strata, draw   ← never imported by eval
   labeling/           # Streamlit app, schema, assign, collect, export_kit
   llm/                # schema, prompts/, fewshot.jsonl (synthetic), notes, run, validate
-  eval/               # metrics.py (CIs, McNemar, span rates, error ROW_IDs), report_md.py
+  eval/               # metrics.py (CIs, McNemar, span rates, error ROW_IDs), report_md.py,
+                      # triage_app.py (local dev error viewer)
   weak/               # silver labeling of the unlabeled pool (not started)
 tests/                # synthetic data only; fixtures/ for synthetic notes
 docs/labeling.md      # labeler guide (also the GOC-labeler README)
@@ -544,6 +557,8 @@ See `ARCHITECTURE.md` for the pipeline diagram, module contracts and repos.
 ### Environment
 - Python 3.12 in the PyCharm `.venv` (user approved 3.12 over 3.11). `uv` isn't installed;
   install with `.venv/Scripts/python.exe -m pip`.
+- On the Mac, `.venv` uses python.org 3.12 (`/Library/Frameworks/Python.framework`); Homebrew
+  3.12's pip is broken (expat mismatch). Install with `.venv/bin/python -m pip`.
 - Run modules from the repo root as `python -m src.<module>.<file>`. Tests:
   `python -m pytest tests`.
 - Installed: `duckdb`, `pandas`, `pyarrow`, `pydantic`, `scikit-learn`, `statsmodels`,
