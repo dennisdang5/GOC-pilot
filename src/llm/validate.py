@@ -31,14 +31,16 @@ def span_verified(span: str | None, note: str) -> bool | None:
     return normalize_ws(span) in normalize_ws(note)
 
 
-def read_predictions(path: Path) -> dict[int, Prediction]:
-    """Latest record per ROW_ID (files are append-only)."""
+def read_predictions(path: Path, prompt_hash: str | None = None) -> dict[int, Prediction]:
+    """Latest record per ROW_ID (files are append-only). With prompt_hash, only records made with
+    that prompt version count (one tuning round; see src/llm/rounds.py)."""
     latest = {}
     if path.exists():
         for line in path.read_text(encoding="utf-8").splitlines():
             if line.strip():
                 p = Prediction.model_validate_json(line)
-                latest[p.row_id] = p
+                if prompt_hash is None or p.prompt_hash == prompt_hash:
+                    latest[p.row_id] = p
     return latest
 
 

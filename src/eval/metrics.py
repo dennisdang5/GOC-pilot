@@ -1,8 +1,14 @@
 """Score LLM predictions against the human gold labels for one set.
 
 Run from the repo root:
-  python -m src.eval.metrics --set dev [--labels ../GOC-labeler/labels]
+  python -m src.eval.metrics --set dev [--round rN] [--rescore] [--labels ../GOC-labeler/labels]
   python -m src.eval.metrics --set combined --pair CONFIG_A CONFIG_B [--pair ...]
+
+Dev is scored per prompt-tuning round (src/llm/rounds.py): only predictions made with that
+round's prompt hashes count. --round defaults to the round matching the current prompts. Output
+goes to reports/rounds/dev_{round}/ (eval.json, errors_{config}.csv), and an existing round is not
+overwritten without --rescore (e.g. after a label revision; log it in CLAUDE.md §3.6). Test sets
+are a single frozen run and are not split into rounds.
 
 Sets: dev, test_a, test_b, combined (test_a + test_b, assembled here). Test sets are refused until
 the prompts are frozen (src/llm/prompts/FROZEN), and their label files are not opened before then.
@@ -17,13 +23,14 @@ Rules (user-approved 2026-10-29):
 - Exact McNemar on correctness. Dev: all config pairs, Holm-adjusted, exploratory. Test sets:
   only the pairs named with --pair (named before the test run).
 
-Writes reports/eval_{set}.json (aggregates) and reports/errors_{set}_{config}.csv (ROW_IDs of false
-positives / negatives, gitignored via *.csv). Prints counts, metrics and ROW_IDs only.
+Test sets write reports/eval_{set}.json (aggregates) and reports/errors_{set}_{config}.csv (ROW_IDs
+of false positives / negatives, gitignored via *.csv). Prints counts, metrics and ROW_IDs only.
 Stratum comes from the sample parquets; src/sampling/ is never imported.
 """
 
 import argparse
 import csv
+import hashlib
 import itertools
 import json
 import sys
@@ -37,6 +44,7 @@ from statsmodels.stats.proportion import proportion_confint
 from src.labeling.collect import read_labels
 from src.llm.notes import DERIVED, SAMPLES
 from src.llm.prompts import STRATEGIES
+from src.llm.rounds import current_round, load_rounds
 from src.llm.run import check_frozen
 from src.llm.validate import PRED_DIR, read_predictions
 
@@ -97,18 +105,32 @@ def load_strata(part: str, derived: Path = DERIVED) -> dict[int, str]:
     return dict(zip(df["ROW_ID"].astype(int), df["stratum"]))
 
 
-def load_configs(part: str, pred_dir: Path = PRED_DIR) -> dict[str, dict]:
-    """config name (file stem minus set) -> {ROW_ID: Prediction}."""
+def strategy_of(config: str) -> str:
+    for s in STRATEGIES:
+        if config.endswith(f"_{s}"):
+            return s
+    raise ValueError(f"config {config} has no known strategy suffix")
+
+
+def load_configs(part: str, pred_dir: Path = PRED_DIR,
+                 round_hashes: dict[str, str] | None = None) -> dict[str, dict]:
+    """config name (file stem minus set) -> {ROW_ID: Prediction}. With round_hashes (strategy ->
+    prompt hash), only that round's predictions are read."""
     suffix = f"_{part}"
-    return {p.stem[: -len(suffix)]: read_predictions(p)
-            for p in sorted(pred_dir.glob(f"*{suffix}.jsonl"))}
+    out = {}
+    for p in sorted(pred_dir.glob(f"*{suffix}.jsonl")):
+        config = p.stem[: -len(suffix)]
+        h = round_hashes[strategy_of(config)] if round_hashes else None
+        out[config] = read_predictions(p, h)
+    return out
 
 
-def build_frame(set_name: str, labels_dir: Path, pred_dir: Path, derived: Path) -> pd.DataFrame:
+def build_frame(set_name: str, labels_dir: Path, pred_dir: Path, derived: Path,
+                round_hashes: dict[str, str] | None = None) -> pd.DataFrame:
     """One row per note: row_id, part, stratum, gold, and per config pred / verified / error."""
-    frames, configs = [], {}
+    frames, configs, hashes = [], {}, {}
     for part in PARTS[set_name]:
-        configs[part] = load_configs(part, pred_dir)
+        configs[part] = load_configs(part, pred_dir, round_hashes)
     if len({frozenset(c) for c in configs.values()}) > 1:
         raise ValueError(f"{set_name}: parts have different configs: "
                          f"{ {p: sorted(c) for p, c in configs.items()} }")
@@ -124,12 +146,21 @@ def build_frame(set_name: str, labels_dir: Path, pred_dir: Path, derived: Path) 
         for config, preds in configs[part].items():
             absent = sorted(set(strata) - set(preds))
             if absent:
-                raise ValueError(f"{config} {part}: {len(absent)} notes without a prediction: "
-                                 f"{absent}")
+                which = (f" with prompt {round_hashes[strategy_of(config)]} (not run yet?)"
+                         if round_hashes else "")
+                raise ValueError(f"{config} {part}: {len(absent)} notes without a prediction"
+                                 f"{which}: {absent}")
+            for r in strata:
+                hashes.setdefault(config, {}).setdefault(preds[r].prompt_hash, 0)
+                hashes[config][preds[r].prompt_hash] += 1
             df[f"{config}|answer"] = df["row_id"].map(lambda r: preds[r].goc_present)
             df[f"{config}|verified"] = df["row_id"].map(lambda r: preds[r].span_verified)
             df[f"{config}|error"] = df["row_id"].map(lambda r: preds[r].error)
         frames.append(df)
+    mixed = {c: h for c, h in hashes.items() if len(h) > 1}
+    if mixed:  # e.g. a rerun after a prompt change that hasn't finished
+        raise ValueError(f"{set_name}: predictions from more than one prompt version "
+                         f"(prompt hash: notes): {mixed}")
     return pd.concat(frames, ignore_index=True)
 
 
@@ -176,6 +207,19 @@ def score_config(df: pd.DataFrame, config: str) -> dict:
     }
 
 
+def mcnemar_p(only_a: int, only_b: int) -> float:
+    """Exact McNemar p-value; only the discordant counts matter."""
+    return float(mcnemar([[0, only_a], [only_b, 0]], exact=True).pvalue)
+
+
+def holm(rows: list[dict]) -> list[dict]:
+    """Add p_holm to each row (Holm across the rows)."""
+    if rows:
+        for r, q in zip(rows, multipletests([r["p"] for r in rows], method="holm")[1]):
+            r["p_holm"] = float(q)
+    return rows
+
+
 def mcnemar_pairs(df: pd.DataFrame, pairs: list[tuple[str, str]]) -> list[dict]:
     """Exact McNemar on per-note correctness (primary rule), Holm-adjusted across pairs."""
     gold = df["gold"].eq("yes")
@@ -183,14 +227,15 @@ def mcnemar_pairs(df: pd.DataFrame, pairs: list[tuple[str, str]]) -> list[dict]:
     for a, b in pairs:
         ok_a, ok_b = predicted_yes(df, a).eq(gold), predicted_yes(df, b).eq(gold)
         only_a, only_b = int((ok_a & ~ok_b).sum()), int((~ok_a & ok_b).sum())
-        table = [[int((ok_a & ok_b).sum()), only_a], [only_b, int((~ok_a & ~ok_b).sum())]]
-        p = float(mcnemar(table, exact=True).pvalue)
-        rows.append({"a": a, "b": b, "only_a_correct": only_a, "only_b_correct": only_b, "p": p})
-    if rows:
-        adj = multipletests([r["p"] for r in rows], method="holm")[1]
-        for r, q in zip(rows, adj):
-            r["p_holm"] = float(q)
-    return rows
+        rows.append({"a": a, "b": b, "only_a_correct": only_a, "only_b_correct": only_b,
+                     "p": mcnemar_p(only_a, only_b)})
+    return holm(rows)
+
+
+def gold_fingerprint(df: pd.DataFrame) -> str:
+    """Short hash of (ROW_ID, gold) pairs, so rounds are only compared on identical gold."""
+    pairs = sorted(zip(df["row_id"].astype(int), df["gold"]))
+    return hashlib.sha256(json.dumps(pairs).encode("utf-8")).hexdigest()[:12]
 
 
 def evaluate(set_name: str, df: pd.DataFrame, pairs: list[tuple[str, str]] | None) -> dict:
@@ -203,7 +248,9 @@ def evaluate(set_name: str, df: pd.DataFrame, pairs: list[tuple[str, str]] | Non
     return {
         "set": set_name,
         "n": int(len(df)),
+        "row_ids": sorted(int(r) for r in df["row_id"]),
         "gold": {k: int(v) for k, v in df["gold"].value_counts().items()},
+        "gold_fingerprint": gold_fingerprint(df),
         "gold_by_stratum": {s: {k: int(v) for k, v in g["gold"].value_counts().items()}
                             for s, g in df.groupby("stratum")},
         "configs": {c: score_config(df, c) for c in configs},
@@ -249,17 +296,26 @@ def print_report(r: dict) -> None:
                   f"p={p['p']:.3f}  p_holm={p['p_holm']:.3f}")
 
 
-def write_outputs(r: dict, report_dir: Path = REPORT_DIR) -> None:
-    report_dir.mkdir(exist_ok=True)
-    (report_dir / f"eval_{r['set']}.json").write_text(json.dumps(r, indent=2) + "\n",
-                                                      encoding="utf-8")
+def output_paths(set_name: str, round_id: str | None, report_dir: Path = REPORT_DIR
+                 ) -> tuple[Path, Path, str]:
+    """(eval json, folder for error CSVs, CSV name prefix)."""
+    if round_id:
+        d = report_dir / "rounds" / f"{set_name}_{round_id}"
+        return d / "eval.json", d, "errors_"
+    return report_dir / f"eval_{set_name}.json", report_dir, f"errors_{set_name}_"
+
+
+def write_outputs(r: dict, report_dir: Path = REPORT_DIR) -> Path:
+    eval_path, err_dir, prefix = output_paths(r["set"], r.get("round"), report_dir)
+    err_dir.mkdir(parents=True, exist_ok=True)
+    eval_path.write_text(json.dumps(r, indent=2) + "\n", encoding="utf-8")
     for c, s in r["configs"].items():
-        with (report_dir / f"errors_{r['set']}_{c}.csv").open("w", newline="",
-                                                             encoding="utf-8") as f:
+        with (err_dir / f"{prefix}{c}.csv").open("w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             w.writerow(["ROW_ID", "error"])
             w.writerows([(i, "FP") for i in s["false_positives"]] +
                         [(i, "FN") for i in s["false_negatives"]])
+    return eval_path
 
 
 def main() -> int:
@@ -267,7 +323,31 @@ def main() -> int:
     ap.add_argument("--set", dest="set_name", required=True, choices=list(PARTS))
     ap.add_argument("--labels", type=Path, default=LABELS_DIR)
     ap.add_argument("--pair", nargs=2, action="append", metavar=("CONFIG_A", "CONFIG_B"))
+    ap.add_argument("--round", dest="round_id",
+                    help="dev only: tuning round to score (default: the current prompts' round)")
+    ap.add_argument("--rescore", action="store_true",
+                    help="dev only: overwrite an existing round's results")
     args = ap.parse_args()
+    round_id, round_hashes = None, None
+    if args.set_name == "dev":
+        rounds = load_rounds()
+        round_id = args.round_id or current_round(rounds)
+        if round_id is None:
+            print("refused: the current prompts match no round in "
+                  "src/llm/prompt_rounds/rounds.json; register a new round first")
+            return 1
+        if round_id not in rounds:
+            print(f"refused: unknown round {round_id}; rounds: {list(rounds)}")
+            return 1
+        round_hashes = rounds[round_id]["prompt_hash"]
+        eval_path = output_paths("dev", round_id)[0]
+        if eval_path.exists() and not args.rescore:
+            print(f"refused: {eval_path.relative_to(ROOT).as_posix()} exists; "
+                  "pass --rescore to overwrite it")
+            return 1
+    elif args.round_id or args.rescore:
+        print("refused: --round / --rescore are for dev only (test sets are a single run)")
+        return 1
     try:
         for part in PARTS[args.set_name]:
             for strategy in STRATEGIES:
@@ -276,14 +356,18 @@ def main() -> int:
         print(f"refused: {e}")
         return 1
     try:
-        df = build_frame(args.set_name, args.labels, PRED_DIR, DERIVED)
+        df = build_frame(args.set_name, args.labels, PRED_DIR, DERIVED, round_hashes)
         report = evaluate(args.set_name, df, [tuple(p) for p in args.pair] if args.pair else None)
+        if round_id:
+            report = {"round": round_id, "prompt_hash": round_hashes, **report}
     except ValueError as e:  # messages hold counts, ROW_IDs and config names only
         print(f"eval: {e}")
         return 1
+    if round_id:
+        print(f"round {round_id}: prompts {round_hashes}")
     print_report(report)
-    write_outputs(report)
-    print(f"\nwrote reports/eval_{args.set_name}.json and reports/errors_{args.set_name}_*.csv")
+    eval_path = write_outputs(report)
+    print(f"\nwrote {eval_path.relative_to(ROOT).as_posix()} and the error CSVs beside it")
     return 0
 
 

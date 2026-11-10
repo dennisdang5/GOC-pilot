@@ -7,8 +7,8 @@ tune prompts on dev, score the frozen prompts once on test, and then use the bes
 "silver-label" the large unlabeled pool (weak supervision).
 
 **Where things stand:** data prep, sampling, labeling, the LLM pipeline and evaluation are all
-built. Dev has been scored (see [`reports/results_dev.md`](reports/results_dev.md)). The next step
-is dev error triage (§5).
+built. Dev is being tuned in **rounds** (one prompt version each, all kept): see
+[`reports/rounds_dev.md`](reports/rounds_dev.md). The next step is the round-1 dev rerun (§5).
 
 ---
 
@@ -363,8 +363,9 @@ Decisions (user-approved 2026-10-28):
   `think: false`), `gemma3:4b`. The installed `llama3` and `gemma2:2b` are not used.
 - **Strategies:** `zero_shot` and `few_shot`.
   - Both share `src/llm/prompts/system.txt` (definition + edge-case table) and `user.txt`.
-  - Few-shot adds 3 **synthetic** examples (`src/llm/fewshot.jsonl`: direct yes · secondhand
-    yes · hard no) as prior user / assistant turns.
+  - Few-shot adds 4 **synthetic** examples (`src/llm/fewshot.jsonl`: direct yes · secondhand
+    yes · hard no (planned meeting) · hard no (CMO status + family update + planned meeting,
+    added 2026-11-09)) as prior user / assistant turns.
 - **Output** (`src/llm/schema.py`): Ollama structured output (JSON schema), validated with
   pydantic. Fields in order: `evidence_span` (verbatim quote or null) → `goc_present`
   (`yes | no`, no `unclear`).
@@ -374,6 +375,8 @@ Decisions (user-approved 2026-10-28):
   - Before sending, the prompt length is estimated at 2.5 chars/token. A note that might not fit
     is not sent (error `truncated`).
   - All dev / test_a / test_b notes fit under both strategies. Real prompts are 2–4k tokens.
+    With the 2026-11-09 prompts, the largest dev estimate is 5.6k (zero-shot) / 6.9k (few-shot)
+    of 12,288, at the conservative 2.5 chars/token.
 - **Transport:** `requests` → `localhost:11434/api/chat` (no `ollama` package).
 - **Hardware (user decision 2026-10-28):** all runs on **CARC Discovery, `gpu` partition, A100**
   (`slurm/run_llm.sbatch`), using Ollama 0.40.12 with model IDs pinned in `slurm/models.txt`.
@@ -387,7 +390,10 @@ Decisions (user-approved 2026-10-28):
 Files:
 - `src/llm/run.py --model M --strategy S --set dev [--limit N]` →
   `data/predictions/{model}_{strategy}_{set}.jsonl` (append-only, latest per ROW_ID wins,
-  resumable), plus raw replies in `data/predictions/raw/`.
+  resumable), plus raw replies in `data/predictions/raw/{stem}/{prompt_hash}/`.
+  - Resume skips only notes whose latest prediction is error-free **and** has the current prompt
+    hash, so a prompt change reruns every note into the same file; older lines stay as history
+    (user decision 2026-11-09). Raw replies from the first round sit directly under `{stem}/`.
   - Errors: `parse`, `truncated` (pre-check, or `done_reason = length`).
   - Prints counts, latency, error types and ROW_IDs only.
 - `src/llm/validate.py [FILES]`: per-file n, errors, spans and % spans verified
@@ -398,18 +404,20 @@ Files:
 ### 4.5 Stage 5 · Evaluation (built 2026-10-29; dev scored)
 
 - `src/eval/metrics.py --set dev | test_a | test_b | combined [--labels DIR] [--pair A B ...]`
-  writes:
+  writes, for test sets:
   - `reports/eval_{set}.json` (aggregates),
   - `reports/errors_{set}_{config}.csv` (FP / FN ROW_IDs only; gitignored by `*.csv`).
-- `src/eval/report_md.py --set SET` renders that JSON as `reports/results_{set}.md` (no ROW_IDs).
+  - Dev is scored per round instead (see "Prompt-tuning rounds" below).
+- `src/eval/report_md.py --set SET [--round rN]` renders that JSON as markdown (no ROW_IDs):
+  `reports/results_{set}.md` for test sets, `reports/rounds/dev_rN/results.md` for dev.
   - A hand-written block between `<!-- summary:start -->` and `<!-- summary:end -->` in the
     existing file is kept verbatim under the title on re-render. The script prints a reminder
     when it keeps one.
-  - `results_dev.md` uses it for the run line and a hand-written Findings + Takeaways summary.
-    Update both by hand after a rerun.
-  - The run line holds only the run date, CARC job and GPU (e.g. "Run: 2026-10-29, CARC job
-    13535035 (A100)."). Label revisions and re-scores are not noted there; they go in the
-    decision log (§3.6).
+  - Each dev round's `results.md` uses it for a hand-written Findings + Takeaways summary.
+    Update it by hand after scoring a round.
+  - For dev, the run line under the title is generated from the round registry: round, run date,
+    CARC job, GPU, prompt hashes and what changed. Label revisions and re-scores are not noted
+    there; they go in the decision log (§3.6).
   - Table headers read "sensitivity (recall)" and "PPV (precision)" (same metrics, no extra
     columns).
 
@@ -433,13 +441,41 @@ Decisions (user-approved 2026-10-29):
   - Dev: all pairs, exploratory.
   - Test sets: only the pairs named with `--pair`, chosen before the test run.
 - Test sets are refused until `FROZEN` exists. A missing gold label or prediction stops the run.
+- A config whose latest predictions come from more than one prompt hash (e.g. an unfinished
+  rerun) stops the run, listing the hashes and note counts (user decision 2026-11-09).
 - Tests: `tests/test_eval_metrics.py` and `tests/test_report_md.py` (synthetic).
+- **Prompt-tuning rounds** (user decision 2026-11-09: every dev run is kept and compared).
+  - A **round** = one prompt version run on dev. r0 = the 2026-10-29 baseline run.
+  - Registry `src/llm/prompt_rounds/rounds.json`: per round, date, prompt hash per strategy, CARC
+    job, GPU, what changed. A copy of that round's `system.txt`, `user.txt` and `fewshot.jsonl`
+    lives in `src/llm/prompt_rounds/rN/` (synthetic, safe to read).
+  - `tests/test_rounds.py` fails if the current prompts don't match the newest round, or if a
+    snapshot doesn't reproduce its hashes. So **every prompt edit needs a new round entry**
+    (next id, new hashes, one-line "changes", snapshot copy).
+  - Predictions for all rounds live in the same append-only files; each line has its
+    `prompt_hash`, and eval selects a round by hash (`read_predictions(path, prompt_hash)`).
+  - `metrics --set dev [--round rN]` (default: the current prompts' round) →
+    `reports/rounds/dev_rN/eval.json` + `errors_{config}.csv`. Refuses to overwrite an existing
+    round without `--rescore` (use it only after a label revision, and log that in §3.6).
+    eval.json also stores the round, its hashes, the ROW_IDs and a gold fingerprint.
+  - `src/eval/compare_rounds.py` → `reports/rounds_dev.md`: rounds table; per config × round
+    TP/FP/FN/TN, sensitivity, PPV, specificity (Wilson), F1, strict F1, verified quotes; Δ vs the
+    previous round and F1 vs r0; exact McNemar per config for each step, Holm across configs
+    within a step ("better" / "worse" only if Holm p < 0.05, else "comparable"). Refuses rounds
+    scored on different notes or gold. Reads aggregates only.
+  - The triage viewer has a round picker; pattern notes go to
+    `data/triage/dev_{round}_patterns.jsonl` (round 0's 15 notes were renamed from
+    `dev_patterns.jsonl`).
+  - Workflow per round: edit prompts → add round + snapshot → tests → commit / push → CARC
+    `git pull` + `sbatch ... dev` → fill `carc_job` → copy predictions back → `metrics --set dev`
+    → `report_md --set dev` → hand-written summary → `compare_rounds`.
 - **Triage viewer** (`src/eval/triage_app.py`, built 2026-11-09): `streamlit run
   src/eval/triage_app.py`. Localhost, **dev only** (hard-coded), never writes labels.
   - Lists every dev note with ≥1 wrong config (primary rule), most-missed first, with a filter by
     config. Shows the gold label, stratum, each config's answer / outcome / quote, and the note
     with the quotes highlighted.
-  - A pattern box appends to `data/triage/dev_patterns.jsonl` (gitignored). Claude never reads it.
+  - A pattern box appends to `data/triage/dev_{round}_patterns.jsonl` (gitignored). Claude never
+    reads it.
   - On dev: 24 error notes (21 gold no, 3 gold yes); 7 are wrong in ≥5 of 6 configs.
   - Tests: `tests/test_triage_app.py` (synthetic).
 
@@ -470,8 +506,9 @@ Decisions (user-approved 2026-10-29):
 - Predictions are in `data/predictions/` on the PC (30 lines each).
 - Prompt hashes: zero-shot `6a3991073695`, few-shot `c13e3a72a57a`.
 
-**Dev results (run 2026-10-29, re-scored 2026-11-06).** Full tables are in
-[`reports/results_dev.md`](reports/results_dev.md), rendered from `reports/eval_dev.json`.
+**Dev results, round r0 (run 2026-10-29, re-scored 2026-11-06).** Full tables are in
+[`reports/rounds/dev_r0/results.md`](reports/rounds/dev_r0/results.md); all rounds side by side in
+[`reports/rounds_dev.md`](reports/rounds_dev.md).
 - Best by F1: qwen3 few-shot (sens 1.00, PPV 0.53, spec 0.62, F1 0.69) and llama3.1 zero-shot
   (F1 0.67). The 8b configs are statistically indistinguishable (all Holm p = 1.0).
 - gemma3:4b says yes to almost everything (spec 0.00–0.05). McNemar puts it below every 8b config
@@ -479,16 +516,33 @@ Decisions (user-approved 2026-10-29):
 - The main error is **false positives**, not misses, almost all in `cues_present` notes.
 - Dev has only 9 positives, so prompt tuning will be noisy.
 
-**▶ Resume here: dev error triage.**
-1. The user goes through the errors in the triage viewer (start with the notes most configs got
-   wrong, then `qwen3-8b_few_shot`), groups them into patterns, and writes one synthetic note per
-   pattern in `tests/fixtures/synthetic_notes.jsonl`. Claude never reads the real notes.
-   - Format (user decision 2026-11-09), one JSON line each: `id` (`syn_001`), `pattern`
-     (snake_case tag), `expected_goc` (yes / no), `error_type` (FP / FN), `text`. No ROW_IDs.
-     Checked by `tests/test_synthetic_fixtures.py`.
-2. **gemma3:4b stays** in all runs and results (user decision 2026-11-09).
-3. Claude proposes prompt revisions from the synthetic patterns → approval → rerun dev on CARC
-   (`git pull` there first) → re-score.
+**Dev error triage (round 1, done 2026-11-09).**
+- Triage viewer: the user found most FPs are notes with a **CMO status / order line** or a
+  **planned meeting alongside a family update** (status / logistics, no goals discussed).
+- Synthetic notes `syn_001`–`syn_005` in `tests/fixtures/synthetic_notes.jsonl` (drafted by
+  Claude from the user's description, checked by the user): CMO status (no) + contrast (yes),
+  planned meeting + update (no) + contrast (yes), family update without goals (no). They are
+  held-out checks, not few-shot examples.
+- Prompt changes (user-approved 2026-11-09):
+  - `system.txt`: CMO / comfort orders join the code-status rule. The planned-meeting rule now
+    covers "family updated today" and adds that a real conversation plus a planned follow-up is
+    still yes. A new test: before yes, find the sentence describing the conversation itself
+    (who, and what goals / values / prognosis / preferences). `evidence_span` must be that
+    sentence; a status, order, consult, plan or update means null and no.
+  - `fewshot.jsonl`: 4th example `syn_d_cmo_update_no` (hard no).
+  - New prompt hashes: zero-shot `84e5a005cefb`, few-shot `eea596c7e013`. Registered as round
+    **r1** (`src/llm/prompt_rounds/r1/`).
+- **gemma3:4b stays** in all runs and results (user decision 2026-11-09).
+
+**▶ Resume here: dev rerun with the round-1 prompts.**
+1. On CARC: `git pull`, then rerun all 6 configs on dev (`slurm/run_llm.sbatch`). Resume now
+   reruns every note because the hashes changed.
+2. Put the job number in `carc_job` for r1 in `src/llm/prompt_rounds/rounds.json`.
+3. Copy predictions back, then `python -m src.eval.metrics --set dev` (scores r1),
+   `python -m src.eval.report_md --set dev`, write the hand-written summary in
+   `reports/rounds/dev_r1/results.md`, and `python -m src.eval.compare_rounds`.
+4. Read `reports/rounds_dev.md`. Watch recall: if the best configs lose more than about 1 true
+   positive, soften the wording (= round r2). Then decide: another round, or `--freeze`.
 
 **After that:**
 1. `--freeze`.

@@ -1,10 +1,13 @@
-"""Render reports/eval_{set}.json as a readable markdown summary.
+"""Render an eval JSON from src.eval.metrics as a readable markdown summary.
 
 Run from the repo root (after src.eval.metrics has written the JSON):
-  python -m src.eval.report_md --set dev
+  python -m src.eval.report_md --set dev [--round rN]    # reports/rounds/dev_rN/results.md
+  python -m src.eval.report_md --set test_a              # reports/results_test_a.md
 
-Writes reports/results_{set}.md. Reads only the aggregate JSON: no labels, predictions or note
-text. False-positive / false-negative ROW_IDs in the JSON are left out of the markdown.
+Dev is rendered per prompt-tuning round (--round defaults to the current prompts' round), with a
+run line built from src/llm/prompt_rounds/rounds.json. Reads only the aggregate JSON and the round
+registry: no labels, predictions or note text. False-positive / false-negative ROW_IDs in the JSON
+are left out of the markdown.
 
 A hand-written summary between SUMMARY_START and SUMMARY_END in the existing results file is
 kept verbatim (placed under the title) when the file is re-rendered.
@@ -15,7 +18,8 @@ import json
 import sys
 from pathlib import Path
 
-from src.eval.metrics import PARTS, REPORT_DIR, fmt
+from src.eval.metrics import PARTS, REPORT_DIR, fmt, output_paths
+from src.llm.rounds import current_round, load_rounds
 
 SUMMARY_START = "<!-- summary:start -->"
 SUMMARY_END = "<!-- summary:end -->"
@@ -85,14 +89,24 @@ def extract_summary(md: str) -> str | None:
     return md[i:j + len(SUMMARY_END)]
 
 
-def render(r: dict, summary: str | None = None) -> str:
+def run_line(round_id: str, entry: dict) -> str:
+    job = f"CARC job {entry['carc_job']}" if entry.get("carc_job") else "CARC job not recorded"
+    h = entry["prompt_hash"]
+    return (f"Round {round_id}: run {entry['date']}, {job} ({entry['gpu']}). Prompts: zero-shot "
+            f"`{h['zero_shot']}`, few-shot `{h['few_shot']}`. Changes: {entry['changes']}")
+
+
+def render(r: dict, summary: str | None = None, round_entry: dict | None = None) -> str:
     cfgs = r["configs"]
     order = _ordered(cfgs)
     n_pos = r["gold"].get("yes", 0)
     # With no gold `unclear` labels, the unclear rule and exclude_unclear are no-ops: omit them.
     has_unclear = r["gold"].get("unclear", 0) > 0
     variants = ("exclude_unclear", "strict") if has_unclear else ("strict",)
-    L = [f"# Results: {r['set']} set", ""]
+    title = f"# Results: {r['set']} set" + (f", round {r['round']}" if r.get("round") else "")
+    L = [title, ""]
+    if round_entry:
+        L += [run_line(r["round"], round_entry), ""]
     if summary:
         L += [summary, ""]
 
@@ -208,16 +222,27 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--set", dest="set_name", required=True, choices=list(PARTS))
     ap.add_argument("--reports", type=Path, default=REPORT_DIR)
+    ap.add_argument("--round", dest="round_id", help="dev only (default: current prompts' round)")
     args = ap.parse_args()
-    src = args.reports / f"eval_{args.set_name}.json"
+    round_id, entry = None, None
+    if args.set_name == "dev":
+        rounds = load_rounds()
+        round_id = args.round_id or current_round(rounds)
+        if round_id not in rounds:
+            print(f"unknown round {round_id}; rounds: {list(rounds)}")
+            return 1
+        entry = rounds[round_id]
+    src = output_paths(args.set_name, round_id, args.reports)[0]
     if not src.exists():
-        print(f"missing {src.name}; run python -m src.eval.metrics --set {args.set_name} first")
+        extra = f" --round {round_id}" if round_id else ""
+        print(f"missing {src.name}; run python -m src.eval.metrics --set {args.set_name}{extra} "
+              "first")
         return 1
-    out = args.reports / f"results_{args.set_name}.md"
+    out = src.parent / ("results.md" if round_id else f"results_{args.set_name}.md")
     summary = extract_summary(out.read_text(encoding="utf-8")) if out.exists() else None
-    out.write_text(render(json.loads(src.read_text(encoding="utf-8")), summary),
+    out.write_text(render(json.loads(src.read_text(encoding="utf-8")), summary, entry),
                    encoding="utf-8")
-    print(f"wrote reports/{out.name}")
+    print(f"wrote {out.relative_to(args.reports.parent).as_posix()}")
     if summary:
         print("kept the hand-written summary block; check it still matches the new numbers")
     return 0

@@ -50,6 +50,11 @@ def base(tmp_path, monkeypatch):
     for stem, ps in runs.items():
         (tmp_path / "predictions" / f"{stem}_dev.jsonl").write_text(
             "".join(p.model_dump_json() + "\n" for p in ps))
+    (tmp_path / "rounds.json").write_text(json.dumps(
+        {"r0": {"date": "2026-10-29", "prompt_hash": {"zero_shot": "x", "few_shot": "x"},
+                "carc_job": None, "gpu": "A100", "changes": "baseline"},
+         "r1": {"date": "2026-11-09", "prompt_hash": {"zero_shot": "y", "few_shot": "y"},
+                "carc_job": None, "gpu": "A100", "changes": "not run"}}))
     monkeypatch.setenv("GOC_TRIAGE_DIR", str(tmp_path))
     return tmp_path
 
@@ -68,7 +73,8 @@ def test_highlight_escapes_and_merges():
 
 def test_error_table_ranks_most_missed_first(base):
     from src.eval.metrics import build_frame
-    df = build_frame("dev", base / "labels", base / "predictions", base / "derived")
+    df = build_frame("dev", base / "labels", base / "predictions", base / "derived",
+                     {"zero_shot": "x", "few_shot": "x"})
     e = t.error_table(df)
     assert e["row_id"].tolist() == [2, 1, 3]          # 2 wrong in 2 configs, then 1 and 3
     assert e["n_wrong"].tolist() == [2, 1, 1]
@@ -80,21 +86,24 @@ def test_app_shows_errors_and_saves_pattern(base):
     labels_before = (base / "labels" / "dev_A_ZZ.jsonl").read_text()
     at = AppTest.from_file(APP, default_timeout=30).run()
     assert not at.exception
+    assert at.warning and "r1" in at.warning[0].value  # newest round has no predictions yet
+    at.selectbox(key="round").select("r0").run()
+    assert not at.exception
     assert "ROW_ID 2" in at.subheader[0].value
     assert "<mark>Palliative</mark>" in at.markdown[0].value
     assert "<mark>Code status: DNR</mark>" in at.markdown[0].value
 
-    at.text_area(key="pattern_2").input("consult only, no talk").run()
-    at.button(key="save_2").click().run()
+    at.text_area(key="pattern_r0_2").input("consult only, no talk").run()
+    at.button(key="save_r0_2").click().run()
     assert not at.exception
-    lines = (base / "triage" / "dev_patterns.jsonl").read_text().splitlines()
+    lines = (base / "triage" / "dev_r0_patterns.jsonl").read_text().splitlines()
     saved = [json.loads(x) for x in lines]
     assert saved[-1]["row_id"] == 2 and saved[-1]["pattern"] == "consult only, no talk"
     assert (base / "labels" / "dev_A_ZZ.jsonl").read_text() == labels_before  # never writes labels
 
     at.selectbox(key="only").select("b_zero_shot").run()
     assert not at.exception
-    assert len(at.radio(key="note_b_zero_shot").options) == 2  # notes 2 and 1
+    assert len(at.radio(key="note_r0_b_zero_shot").options) == 2  # notes 2 and 1
 
 
 def test_triage_is_dev_only():

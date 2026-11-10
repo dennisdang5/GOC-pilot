@@ -1,12 +1,12 @@
-# Results: dev set
+# Results: dev set, round r0
+
+Round r0: run 2026-10-29, CARC job 13535035 (A100). Prompts: zero-shot `6a3991073695`, few-shot `c13e3a72a57a`. Changes: Baseline: GOC definition + edge-case rules; few-shot adds 3 synthetic examples (direct yes, secondhand yes, hard no: planned meeting).
 
 <!-- summary:start -->
-Run: 2026-10-29, CARC job 13535035 (A100).
-
 ## Summary
 
-*Hand-written for the run above. Re-renders keep this block as-is, so check it against the
-tables after a new run.*
+*Hand-written for this round. Re-renders keep this block as-is, so check it against the
+tables after a re-score.*
 
 ### Findings
 

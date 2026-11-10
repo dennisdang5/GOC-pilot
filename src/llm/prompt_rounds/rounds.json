@@ -1,0 +1,16 @@
+{
+  "r0": {
+    "date": "2026-10-29",
+    "prompt_hash": {"zero_shot": "6a3991073695", "few_shot": "c13e3a72a57a"},
+    "carc_job": "13535035",
+    "gpu": "A100",
+    "changes": "Baseline: GOC definition + edge-case rules; few-shot adds 3 synthetic examples (direct yes, secondhand yes, hard no: planned meeting)."
+  },
+  "r1": {
+    "date": "2026-11-09",
+    "prompt_hash": {"zero_shot": "84e5a005cefb", "few_shot": "eea596c7e013"},
+    "carc_job": null,
+    "gpu": "A100",
+    "changes": "From dev triage (CMO status lines; planned meeting + family update): CMO / comfort orders join the code-status rule; planned meeting with a family update -> no, real conversation + follow-up -> yes; must find the sentence describing the conversation, and evidence_span must be that sentence; 4th few-shot example (hard no: CMO + update + planned meeting)."
+  }
+}

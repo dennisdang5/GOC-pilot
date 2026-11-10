@@ -5,8 +5,10 @@ Run from the repo root:
   python -m src.llm.run --freeze      # record current prompt hashes; unlocks test_a / test_b
 
 Writes data/predictions/{model}_{strategy}_{set}.jsonl (append-only, latest per ROW_ID wins) and
-raw model replies to data/predictions/raw/{model}_{strategy}_{set}/{ROW_ID}.json. Resumable:
-ROW_IDs that already have an error-free prediction are skipped.
+raw model replies to data/predictions/raw/{model}_{strategy}_{set}/{prompt_hash}/{ROW_ID}.json.
+Resumable: ROW_IDs whose latest prediction is error-free AND made with the current prompt hash are
+skipped, so a prompt change reruns every note into the same file (older lines stay as history).
+Raw replies from before 2026-11-09 sit directly under the stem folder, without a hash folder.
 
 Prints counts, latency, error types and ROW_IDs only. No note text or model output.
 
@@ -117,11 +119,12 @@ def predict_one(session, host, model, strategy, set_name, row_id, note, raw_dir,
 def run(model, strategy, set_name, row_ids, notes, session, host=HOST, num_ctx=NUM_CTX,
         pred_dir=PRED_DIR) -> dict:
     stem = file_stem(model, strategy, set_name)
-    out_path, raw_dir = pred_dir / f"{stem}.jsonl", pred_dir / "raw" / stem
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    done = {r for r, p in read_predictions(out_path).items() if p.error is None}
-    todo = [r for r in row_ids if r not in done]
     phash = prompt_hash(strategy)
+    out_path, raw_dir = pred_dir / f"{stem}.jsonl", pred_dir / "raw" / stem / phash
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    done = {r for r, p in read_predictions(out_path).items()
+            if p.error is None and p.prompt_hash == phash}
+    todo = [r for r in row_ids if r not in done]
     summary = {"skipped": len(row_ids) - len(todo), "ok": 0, "errors": {}, "latency": []}
     with out_path.open("a", encoding="utf-8") as f:
         for i, row_id in enumerate(todo, start=1):

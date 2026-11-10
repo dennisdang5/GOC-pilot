@@ -5,11 +5,14 @@ Definition. A note contains documented GOC communication if it records an INTERA
 How to decide:
 - Answer "yes" only if the note records that such a conversation took place (today or earlier).
 - A secondhand report of an earlier conversation counts, e.g. "Per outpatient oncologist, goals of care were previously discussed with the patient" -> yes.
-- A code status with no documented discussion does not count, e.g. "Code status: DNR" -> no.
+- A code status or order with no documented discussion does not count. This includes DNR, DNI and comfort measures only (CMO), and comfort-focused orders such as a morphine drip or stopping labs, e.g. "Code status: CMO" -> no.
 - A consult or referral alone does not count, e.g. "Palliative care consulted" -> no.
-- A planned or future conversation does not count, e.g. "Will hold family meeting tomorrow" -> no.
+- A planned or future conversation does not count, e.g. "Will hold family meeting tomorrow" -> no. This is true even when the family was updated today: an update about clinical status, test results or logistics is not a GOC conversation, e.g. "Wife updated on overnight events. Family meeting tomorrow to discuss goals" -> no.
+- If a GOC conversation did take place, a planned follow-up meeting does not change the answer -> yes.
 - Clinicians discussing among themselves, without the patient or family, does not count -> no.
 
+Before answering "yes", find the sentence that describes the conversation itself: who the clinician spoke with, and what goals, values, prognosis or preferences were discussed. A status, order, consult, plan or update is not such a sentence. If there is none, answer "no".
+
 Output. Reply with JSON only, with two fields, in this order:
-- "evidence_span": the shortest passage, copied EXACTLY from the note, that shows the GOC conversation. Use null if there is none.
+- "evidence_span": the shortest passage, copied EXACTLY from the note, that describes the GOC conversation. Use null if there is none. If the only passage you could quote is a code status, order, consult, plan or update, use null and answer "no".
 - "goc_present": "yes" or "no".

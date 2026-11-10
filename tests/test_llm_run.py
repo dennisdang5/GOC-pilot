@@ -66,13 +66,29 @@ def test_run_writes_predictions_and_resumes(tmp_path):
     assert preds[1].goc_present == "yes" and preds[1].span_verified is True
     assert preds[2].goc_present is None and preds[2].error == "parse"
     assert preds[3].span_verified is False
-    assert (tmp_path / "raw" / "qwen3-8b_few_shot_dev" / "1.json").exists()
+    phash = runmod.prompt_hash("few_shot")
+    assert (tmp_path / "raw" / "qwen3-8b_few_shot_dev" / phash / "1.json").exists()
 
     # resume: only the errored ROW_ID is retried
     session2 = FakeSession({**replies, 2: reply(None, "no")})
     s2 = runmod.run("qwen3:8b", "few_shot", "dev", [1, 2, 3], NOTES, session2, pred_dir=tmp_path)
     assert s2["skipped"] == 2 and s2["ok"] == 1 and len(session2.payloads) == 1
     assert read_predictions(tmp_path / "qwen3-8b_few_shot_dev.jsonl")[2].goc_present == "no"
+
+
+def test_prompt_change_reruns_all_notes(tmp_path, monkeypatch):
+    replies = {r: reply(None, "no") for r in (1, 2, 3)}
+    runmod.run("qwen3:8b", "few_shot", "dev", [1, 2, 3], NOTES, FakeSession(replies),
+               pred_dir=tmp_path)
+    monkeypatch.setattr(runmod, "prompt_hash", lambda strategy: "newhash")
+    session = FakeSession(replies)
+    s = runmod.run("qwen3:8b", "few_shot", "dev", [1, 2, 3], NOTES, session, pred_dir=tmp_path)
+    assert s["skipped"] == 0 and s["ok"] == 3 and len(session.payloads) == 3
+    preds = read_predictions(tmp_path / "qwen3-8b_few_shot_dev.jsonl")
+    assert {p.prompt_hash for p in preds.values()} == {"newhash"}
+    lines = (tmp_path / "qwen3-8b_few_shot_dev.jsonl").read_text().splitlines()
+    assert len(lines) == 6  # the old round stays in the file as history
+    assert (tmp_path / "raw" / "qwen3-8b_few_shot_dev" / "newhash" / "1.json").exists()
 
 
 def test_think_flag_only_for_qwen3(tmp_path):

@@ -2,14 +2,16 @@
 
 Run from the repo root:  streamlit run src/eval/triage_app.py
 
-Dev set only (the test sets stay frozen). Lists every dev note that at least one config got wrong
-under the primary rule, most-missed first. For each note it shows the gold label, every config's
-answer, whether its quote was verified, and the note text with the quotes highlighted. A free-text
-pattern box saves to data/triage/dev_patterns.jsonl (gitignored, append-only, latest per ROW_ID
-wins). The pattern file is for the user's own notes; Claude never reads it. Never writes labels.
+Dev set only (the test sets stay frozen), one prompt-tuning round at a time (src/llm/rounds.py;
+defaults to the current prompts' round, any round that has been run can be picked). Lists every
+dev note that at least one config got wrong under the primary rule, most-missed first. For each
+note it shows the gold label, every config's answer, whether its quote was verified, and the note
+text with the quotes highlighted. A free-text pattern box saves to
+data/triage/dev_{round}_patterns.jsonl (gitignored, append-only, latest per ROW_ID wins). The
+pattern files are for the user's own notes; Claude never reads them. Never writes labels.
 
-Set GOC_TRIAGE_DIR to a folder holding derived/, predictions/, labels/ and triage/ to run on
-synthetic data (used by the tests).
+Set GOC_TRIAGE_DIR to a folder holding derived/, predictions/, labels/, triage/ and rounds.json to
+run on synthetic data (used by the tests).
 """
 
 import html
@@ -29,6 +31,7 @@ import streamlit as st  # noqa: E402
 
 from src.eval.metrics import LABELS_DIR, build_frame, configs_in, load_configs  # noqa: E402
 from src.llm.notes import DERIVED, load_notes  # noqa: E402
+from src.llm.rounds import REGISTRY, current_round, load_rounds  # noqa: E402
 from src.llm.validate import PRED_DIR  # noqa: E402
 
 SET = "dev"  # hard-coded: triage never touches test_a / test_b
@@ -36,11 +39,14 @@ SET = "dev"  # hard-coded: triage never touches test_a / test_b
 if "GOC_TRIAGE_DIR" in os.environ:
     BASE = Path(os.environ["GOC_TRIAGE_DIR"])
     DERIVED_DIR, PRED_PATH, LABELS_PATH = BASE / "derived", BASE / "predictions", BASE / "labels"
-    TRIAGE_DIR = BASE / "triage"
+    TRIAGE_DIR, ROUNDS_PATH = BASE / "triage", BASE / "rounds.json"
 else:
     DERIVED_DIR, PRED_PATH, LABELS_PATH = DERIVED, PRED_DIR, LABELS_DIR
-    TRIAGE_DIR = ROOT / "data" / "triage"
-PATTERNS = TRIAGE_DIR / f"{SET}_patterns.jsonl"
+    TRIAGE_DIR, ROUNDS_PATH = ROOT / "data" / "triage", REGISTRY
+
+
+def patterns_path(round_id: str) -> Path:
+    return TRIAGE_DIR / f"{SET}_{round_id}_patterns.jsonl"
 
 
 # ---------- data ----------
@@ -104,10 +110,10 @@ def save_pattern(path: Path, row_id: int, pattern: str) -> None:
 
 
 @st.cache_data
-def load_all() -> tuple[pd.DataFrame, dict, dict[int, str]]:
-    df = build_frame(SET, LABELS_PATH, PRED_PATH, DERIVED_DIR)
+def load_all(round_hashes: dict[str, str]) -> tuple[pd.DataFrame, dict, dict[int, str]]:
+    df = build_frame(SET, LABELS_PATH, PRED_PATH, DERIVED_DIR, round_hashes)
     errors = error_table(df)
-    preds = load_configs(SET, PRED_PATH)
+    preds = load_configs(SET, PRED_PATH, round_hashes)
     notes = load_notes(errors["row_id"].tolist(), DERIVED_DIR)
     return errors, preds, notes
 
@@ -121,12 +127,23 @@ def note_html(body: str) -> str:
 
 def main() -> None:
     st.set_page_config(page_title="GOC dev triage", layout="wide")
-    errors, preds, notes = load_all()
-    configs = sorted(preds)
-    patterns = read_patterns(PATTERNS)
-
+    rounds = load_rounds(ROUNDS_PATH)
+    ids = list(rounds)
+    default = current_round(rounds) or ids[-1]
     with st.sidebar:
         st.header("Dev error triage")
+        round_id = st.selectbox("Round", ids, index=ids.index(default), key="round",
+                                format_func=lambda r: f"{r} ({rounds[r]['date']})")
+    try:
+        errors, preds, notes = load_all(rounds[round_id]["prompt_hash"])
+    except ValueError as e:  # counts, config names and ROW_IDs only
+        st.warning(f"Round {round_id} can't be shown yet: {e}")
+        return
+    configs = sorted(preds)
+    path = patterns_path(round_id)
+    patterns = read_patterns(path)
+
+    with st.sidebar:
         only = st.selectbox("Show errors of", ["any config"] + configs, key="only")
         rows = errors if only == "any config" else \
             errors[errors[f"{only}|outcome"].isin(["FP", "FN"])].reset_index(drop=True)
@@ -138,7 +155,7 @@ def main() -> None:
             st.info("No errors for this config.")
             return
         i = st.radio("Note", range(len(labels)), format_func=lambda j: labels[j],
-                     key=f"note_{only}")
+                     key=f"note_{round_id}_{only}")
 
     r = rows.iloc[i]
     row_id = int(r["row_id"])
@@ -158,9 +175,9 @@ def main() -> None:
     st.markdown(note_html(highlight(text, ranges)), unsafe_allow_html=True)
 
     pattern = st.text_area("Pattern (your words; stays in data/triage/, never shared)",
-                           value=patterns.get(row_id, ""), key=f"pattern_{row_id}")
-    if st.button("Save pattern", key=f"save_{row_id}"):
-        save_pattern(PATTERNS, row_id, pattern)
+                           value=patterns.get(row_id, ""), key=f"pattern_{round_id}_{row_id}")
+    if st.button("Save pattern", key=f"save_{round_id}_{row_id}"):
+        save_pattern(path, row_id, pattern)
         st.rerun()
 
 

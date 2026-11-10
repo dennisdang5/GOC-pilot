@@ -88,9 +88,11 @@ Every stage reads from and writes to `data/`, which is gitignored. No stage prin
 | `llm/notes.py` | sample parquets, candidates | ROW_IDs per set, TEXT in memory | — |
 | `llm/run.py` | model, strategy, set (`dev \| test_a \| test_b`) | `predictions/{model}_{strategy}_{set}.jsonl` + `predictions/raw/` | counts, latency, error types, ROW_IDs |
 | `llm/validate.py` | prediction files | — (`span_verified` is filled by run) | n, errors, % spans verified |
-| `eval/metrics.py` | gold (that set's label files only) + predictions + sample strata | `reports/eval_{set}.json`, `reports/errors_{set}_{config}.csv` (ROW_IDs) | metrics, McNemar, ROW_IDs |
-| `eval/report_md.py` | `reports/eval_{set}.json` | `reports/results_{set}.md` (no ROW_IDs) | — |
-| `eval/triage_app.py` | dev gold + predictions + candidates (Streamlit, localhost, dev only) | `data/triage/dev_patterns.jsonl` (user's notes, gitignored) | — (UI only; never writes labels) |
+| `llm/rounds.py` | `llm/prompt_rounds/rounds.json` + `prompt_rounds/rN/` (prompt snapshots) | round registry, current round | — |
+| `eval/metrics.py` | gold (that set's label files only) + predictions (dev: one round's prompt hashes) + sample strata | test: `reports/eval_{set}.json`, `reports/errors_{set}_{config}.csv`; dev: `reports/rounds/dev_rN/eval.json`, `errors_{config}.csv` (ROW_IDs) | metrics, McNemar, ROW_IDs |
+| `eval/report_md.py` | eval JSON (+ round registry for dev) | `reports/results_{set}.md` / `reports/rounds/dev_rN/results.md` (no ROW_IDs) | — |
+| `eval/compare_rounds.py` | round registry + `reports/rounds/dev_r*/eval.json` | `reports/rounds_dev.md` (no ROW_IDs) | rounds scored |
+| `eval/triage_app.py` | dev gold + one round's predictions + candidates (Streamlit, localhost, dev only) | `data/triage/dev_{round}_patterns.jsonl` (user's notes, gitignored) | — (UI only; never writes labels) |
 
 ### Planned (design not yet approved)
 

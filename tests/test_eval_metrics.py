@@ -120,3 +120,42 @@ def test_write_outputs(dev_setup, tmp_path):
     assert json.loads((tmp_path / "reports" / "eval_dev.json").read_text())["n"] == 6
     rows = (tmp_path / "reports" / "errors_dev_noisy_zero_shot.csv").read_text().splitlines()
     assert rows == ["ROW_ID,error", "3,FP", "4,FP", "2,FN"]
+
+
+def test_mixed_prompt_versions_are_an_error(dev_setup):
+    derived, labels, preds = dev_setup
+    ps = [pred(r, "no") for r in range(1, 7)]
+    ps[0] = ps[0].model_copy(update={"prompt_hash": "new"})  # a rerun that stopped after 1 note
+    write_preds(preds, "half_zero_shot_dev", ps)
+    with pytest.raises(ValueError, match="more than one prompt version"):
+        m.build_frame("dev", labels, preds, derived)
+
+
+def test_round_selects_its_own_predictions(dev_setup):
+    """One file holds two rounds; each round is scored from its own prompt hash only."""
+    derived, labels, preds = dev_setup
+    old = [pred(r, "yes") for r in range(1, 7)]
+    new = [pred(r, "no").model_copy(update={"prompt_hash": "new"}) for r in range(1, 7)]
+    write_preds(preds, "two_zero_shot_dev", old + new)
+    for f in preds.glob("*.jsonl"):  # keep only the two-round file
+        if f.name != "two_zero_shot_dev.jsonl":
+            f.unlink()
+    r_old = m.build_frame("dev", labels, preds, derived, {"zero_shot": "x", "few_shot": "x"})
+    r_new = m.build_frame("dev", labels, preds, derived, {"zero_shot": "new", "few_shot": "new"})
+    assert r_old["two_zero_shot|answer"].eq("yes").all()
+    assert r_new["two_zero_shot|answer"].eq("no").all()
+    with pytest.raises(ValueError, match="with prompt missing"):
+        m.build_frame("dev", labels, preds, derived, {"zero_shot": "missing", "few_shot": "x"})
+
+
+def test_round_outputs_go_to_round_folder(tmp_path):
+    assert m.output_paths("dev", "r1", tmp_path) == (
+        tmp_path / "rounds" / "dev_r1" / "eval.json", tmp_path / "rounds" / "dev_r1", "errors_")
+    assert m.output_paths("test_a", None, tmp_path)[0] == tmp_path / "eval_test_a.json"
+
+
+def test_gold_fingerprint_changes_with_labels():
+    a = pd.DataFrame({"row_id": [1, 2], "gold": ["yes", "no"]})
+    b = pd.DataFrame({"row_id": [2, 1], "gold": ["no", "yes"]})
+    c = pd.DataFrame({"row_id": [1, 2], "gold": ["no", "no"]})
+    assert m.gold_fingerprint(a) == m.gold_fingerprint(b) != m.gold_fingerprint(c)
