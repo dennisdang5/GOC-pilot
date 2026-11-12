@@ -121,9 +121,11 @@ def render(rounds: dict[str, dict], scored: dict[str, dict]) -> str:
     if len(ids) < 2:
         L += ["Only one round has been scored, so there is nothing to compare yet.", ""]
     else:
+        n_yes = scored[ids[-1]].get("gold", {}).get("yes", 0)
+        one_note = f" One dev note moves sensitivity by about {1 / n_yes:.2f}." if n_yes else ""
         L += ["## Change from the previous round", "",
               "Point-estimate differences (new minus previous); `F1 vs r0` compares with the "
-              "first round. One dev note moves sensitivity by about 0.11.", ""]
+              "first round." + one_note, ""]
         rows = []
         first = ids[0]
         for c in configs:
@@ -154,10 +156,13 @@ def render(rounds: dict[str, dict], scored: dict[str, dict]) -> str:
         L += _table(["config", "step", "only previous right", "only new right", "p", "Holm p",
                      ""], rows) + [""]
 
+    latest = scored[ids[-1]]
+    n_pos = latest.get("gold", {}).get("yes", 0)
+    step = f"{1 / n_pos:.2f}" if n_pos else "NA"
     L += ["## How to read this", "",
-          "- Same 30 dev notes and the same gold labels for every round (current labels, "
-          "including the 2026-11-06 revisions).",
-          "- Dev has 9 gold positives: one note moves sensitivity by about 0.11, so most "
+          f"- Same {latest.get('n', 30)} dev notes and the same gold labels for every round (current "
+          "labels, including all revisions logged in CLAUDE.md §3.6).",
+          f"- Dev has {n_pos} gold positives: one note moves sensitivity by about {step}, so most "
           "round-to-round changes are within noise. Rely on the McNemar column, not the deltas.",
           "- Prompts were tuned on these same notes, so later rounds are optimistic on dev. "
           "Only the frozen test sets give reportable numbers.",

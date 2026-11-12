@@ -209,8 +209,24 @@ order.
   ROW_ID 654562 (dev_B) → no. The change was appended to the original labelers' files
   (`dev_E_NS.jsonl`, `dev_B_WB.jsonl`) **with the original labelers' initials**, at the user's
   choice, so this entry is the only record that the user made the change. The original `unclear`
-  lines remain as history (the latest line wins). Dev only: no test labels were opened. Dev now
-  has 9 yes · 21 no · 0 unclear.
+  lines remain as history (the latest line wins). Dev only: no test labels were opened. Dev then
+  had 9 yes · 21 no · 0 unclear (superseded by the 2026-11-11 entry).
+- **2026-11-11, dev label revisions (after r1).** During the r1 triage, after seeing r0 and r1
+  model output, the user re-read dev notes in the triage viewer and judged that the original
+  labelers had misapplied the operational definition.
+  - no → yes: ROW_IDs 331421 (dev_E), 47191 (dev_E) and 412387 (dev_C). Most configs had called
+    them yes (FPs in 4–6 of 6 configs).
+  - yes → no: ROW_IDs 688565, 561002 and 359096 (dev_B), and 400657 (dev_E). These were the r1
+    false negatives, re-read so that the review went both ways.
+  - ROW_ID 1784 (dev_A) was re-checked and kept as no.
+  - The changes were appended to the original labelers' files (`dev_B_WB.jsonl`,
+    `dev_C_JG.jsonl`, `dev_E_NS.jsonl`) **under the user's initials DD** (user decision). The
+    original lines remain as history.
+  - r0 and r1 were re-scored with `--rescore`. Dev only: no test labels were opened. Dev now has
+    **8 yes · 22 no · 0 unclear**, and all 8 positives are in `cues_present`.
+  - Caveat: these revisions were made after seeing model output, so dev scores are optimistic.
+    The review covered the r1 FPs that were called yes by many configs and all the r1 FNs, not
+    every dev note.
 
 ---
 
@@ -484,7 +500,8 @@ Decisions (user-approved 2026-10-29):
 ## 5. Status and next steps (2026-11-11)
 
 **Labels (all in):**
-- dev 30/30 (5 members; 9 yes, 21 no, 0 unclear after the 2026-11-06 revisions, §3.6).
+- dev 30/30 (5 members; 8 yes, 22 no, 0 unclear after the 2026-11-06 and 2026-11-11
+  revisions, §3.6).
 - test_physician 50/50 (9 yes).
 - test_physician_b 50/50, collected 2026-10-28. The yes rate was deliberately not inspected.
 - test_a and test_b are frozen.
@@ -506,15 +523,16 @@ Decisions (user-approved 2026-10-29):
 - Predictions are in `data/predictions/` on the PC (30 lines each).
 - Prompt hashes: zero-shot `6a3991073695`, few-shot `c13e3a72a57a`.
 
-**Dev results, round r0 (run 2026-10-29, re-scored 2026-11-06).** Full tables are in
-[`reports/rounds/dev_r0/results.md`](reports/rounds/dev_r0/results.md); all rounds side by side in
-[`reports/rounds_dev.md`](reports/rounds_dev.md).
-- Best by F1: qwen3 few-shot (sens 1.00, PPV 0.53, spec 0.62, F1 0.69) and llama3.1 zero-shot
-  (F1 0.67). The 8b configs are statistically indistinguishable (all Holm p = 1.0).
+**Dev results, round r0 (run 2026-10-29, re-scored 2026-11-11 on revised labels).** Full tables
+are in [`reports/rounds/dev_r0/results.md`](reports/rounds/dev_r0/results.md); all rounds side by
+side in [`reports/rounds_dev.md`](reports/rounds_dev.md).
+- Best by F1: llama3.1 few-shot (sens 0.75, PPV 0.60, spec 0.82, F1 0.67) and qwen3 few-shot
+  (sens 1.00, PPV 0.47, F1 0.64). The 8b configs are statistically indistinguishable (Holm p
+  0.77–1.0).
 - gemma3:4b says yes to almost everything (spec 0.00–0.05). McNemar puts it below every 8b config
-  (Holm p 0.004–0.035).
+  (Holm p 0.004–0.031).
 - The main error is **false positives**, not misses, almost all in `cues_present` notes.
-- Dev has only 9 positives, so prompt tuning will be noisy.
+- Dev has only 8 positives, so prompt tuning will be noisy.
 
 **Dev error triage (round 1, done 2026-11-09).**
 - Triage viewer: the user found most FPs are notes with a **CMO status / order line** or a
@@ -534,14 +552,15 @@ Decisions (user-approved 2026-10-29):
     **r1** (`src/llm/prompt_rounds/r1/`).
 - **gemma3:4b stays** in all runs and results (user decision 2026-11-09).
 
-**Dev results, round r1 (CARC job 13933520, A100, scored 2026-11-11).** All 180 calls ok.
-Details and hand-written summary in
+**Dev results, round r1 (CARC job 13933520, A100, scored 2026-11-11 on revised labels).** All
+180 calls ok. Details and hand-written summary in
 [`reports/rounds/dev_r1/results.md`](reports/rounds/dev_r1/results.md).
 - No config changed significantly from r0 (McNemar, all Holm p = 1.0).
-- llama3.1: −2 FP, +1 FN in both strategies (zero-shot F1 0.67 flat; few-shot spec 0.90, recall
-  0.56). Its verified quotes dropped (zero-shot 7/12 on yes; strict F1 0.38).
-- qwen3: FPs unchanged (few-shot 8, zero-shot 11); few-shot lost 1 TP (F1 0.69 → 0.64).
-- gemma3:4b says yes to all 30 notes in both strategies.
+- llama3.1: −3 FP and no new misses in both strategies. Few-shot F1 0.67 → 0.80 (sens 0.75,
+  PPV 0.86, spec 0.95); zero-shot 0.61 → 0.70. Its verified quotes dropped (zero-shot 7/12 on
+  yes; strict F1 few-shot 0.62, zero-shot 0.53).
+- qwen3: few-shot −1 FP (F1 0.64 → 0.67, 8 FP left); zero-shot unchanged (12 FP, F1 0.57).
+- The 8b configs are still tied (Holm p ≥ 0.16). gemma3:4b says yes to all 30 notes.
 - FPs still almost all in `cues_present`.
 - Predictions: the CARC files hold both rounds (r0 lines, then r1 lines; eval picks by hash).
   A spare copy of the run-1 download is in `data/prediction_runs/run1/`.
