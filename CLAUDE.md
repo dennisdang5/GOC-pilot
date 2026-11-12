@@ -8,7 +8,7 @@ tune prompts on dev, score the frozen prompts once on test, and then use the bes
 
 **Where things stand:** data prep, sampling, labeling, the LLM pipeline and evaluation are all
 built. Dev is being tuned in **rounds** (one prompt version each, all kept): see
-[`reports/rounds_dev.md`](reports/rounds_dev.md). The next step is the round-1 dev rerun (§5).
+[`reports/rounds_dev.md`](reports/rounds_dev.md). Round r1 is scored; the next step is round r2 (§5).
 
 ---
 
@@ -481,7 +481,7 @@ Decisions (user-approved 2026-10-29):
 
 ---
 
-## 5. Status and next steps (2026-11-09)
+## 5. Status and next steps (2026-11-11)
 
 **Labels (all in):**
 - dev 30/30 (5 members; 9 yes, 21 no, 0 unclear after the 2026-11-06 revisions, §3.6).
@@ -534,15 +534,26 @@ Decisions (user-approved 2026-10-29):
     **r1** (`src/llm/prompt_rounds/r1/`).
 - **gemma3:4b stays** in all runs and results (user decision 2026-11-09).
 
-**▶ Resume here: dev rerun with the round-1 prompts.**
-1. On CARC: `git pull`, then rerun all 6 configs on dev (`slurm/run_llm.sbatch`). Resume now
-   reruns every note because the hashes changed.
-2. Put the job number in `carc_job` for r1 in `src/llm/prompt_rounds/rounds.json`.
-3. Copy predictions back, then `python -m src.eval.metrics --set dev` (scores r1),
-   `python -m src.eval.report_md --set dev`, write the hand-written summary in
-   `reports/rounds/dev_r1/results.md`, and `python -m src.eval.compare_rounds`.
-4. Read `reports/rounds_dev.md`. Watch recall: if the best configs lose more than about 1 true
-   positive, soften the wording (= round r2). Then decide: another round, or `--freeze`.
+**Dev results, round r1 (CARC job 13933520, A100, scored 2026-11-11).** All 180 calls ok.
+Details and hand-written summary in
+[`reports/rounds/dev_r1/results.md`](reports/rounds/dev_r1/results.md).
+- No config changed significantly from r0 (McNemar, all Holm p = 1.0).
+- llama3.1: −2 FP, +1 FN in both strategies (zero-shot F1 0.67 flat; few-shot spec 0.90, recall
+  0.56). Its verified quotes dropped (zero-shot 7/12 on yes; strict F1 0.38).
+- qwen3: FPs unchanged (few-shot 8, zero-shot 11); few-shot lost 1 TP (F1 0.69 → 0.64).
+- gemma3:4b says yes to all 30 notes in both strategies.
+- FPs still almost all in `cues_present`.
+- Predictions: the CARC files hold both rounds (r0 lines, then r1 lines; eval picks by hash).
+  A spare copy of the run-1 download is in `data/prediction_runs/run1/`.
+
+**▶ Resume here: round r2 of prompt tuning (user decision 2026-11-11: another round).**
+1. Triage the r1 FPs / FNs in the triage viewer (round picker → r1), starting with qwen3
+   few-shot; the user writes synthetic notes for new patterns.
+2. Claude proposes r2 prompt changes → approval → register r2 (new hashes, snapshot) → tests →
+   commit / push.
+3. On CARC: `git pull`, rerun all 6 configs on dev, fill `carc_job`, copy predictions back,
+   `metrics --set dev`, `report_md --set dev`, hand-written summary, `compare_rounds`.
+4. Watch recall and llama3.1's quote verification. Then decide: another round, or `--freeze`.
 
 **After that:**
 1. `--freeze`.

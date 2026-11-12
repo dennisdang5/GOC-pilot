@@ -9,7 +9,7 @@
   "r1": {
     "date": "2026-11-09",
     "prompt_hash": {"zero_shot": "84e5a005cefb", "few_shot": "eea596c7e013"},
-    "carc_job": null,
+    "carc_job": "13933520",
     "gpu": "A100",
     "changes": "From dev triage (CMO status lines; planned meeting + family update): CMO / comfort orders join the code-status rule; planned meeting with a family update -> no, real conversation + follow-up -> yes; must find the sentence describing the conversation, and evidence_span must be that sentence; 4th few-shot example (hard no: CMO + update + planned meeting)."
   }
