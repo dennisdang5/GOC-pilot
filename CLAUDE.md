@@ -8,7 +8,7 @@ tune prompts on dev, score the frozen prompts once on test, and then use the bes
 
 **Where things stand:** data prep, sampling, labeling, the LLM pipeline and evaluation are all
 built. Dev is being tuned in **rounds** (one prompt version each, all kept): see
-[`reports/rounds_dev.md`](reports/rounds_dev.md). Round r1 is scored; the next step is round r2 (§5).
+[`reports/rounds_dev.md`](reports/rounds_dev.md). Round r2 prompts are registered; the next step is the r2 dev run on CARC (§5).
 
 ---
 
@@ -379,20 +379,23 @@ Decisions (user-approved 2026-10-28):
   `think: false`), `gemma3:4b`. The installed `llama3` and `gemma2:2b` are not used.
 - **Strategies:** `zero_shot` and `few_shot`.
   - Both share `src/llm/prompts/system.txt` (definition + edge-case table) and `user.txt`.
-  - Few-shot adds 4 **synthetic** examples (`src/llm/fewshot.jsonl`: direct yes · secondhand
-    yes · hard no (planned meeting) · hard no (CMO status + family update + planned meeting,
-    added 2026-11-09)) as prior user / assistant turns.
+  - Few-shot adds **synthetic** examples (`src/llm/fewshot.jsonl`) as prior user / assistant
+    turns: 3 in r0, 4 in r1, and **16** (6 yes, 10 no; written by the user) from r2
+    (2026-11-11).
 - **Output** (`src/llm/schema.py`): Ollama structured output (JSON schema), validated with
   pydantic. Fields in order: `evidence_span` (verbatim quote or null) → `goc_present`
   (`yes | no`, no `unclear`).
-- **Decoding:** temperature 0, seed 20261028, `num_predict` 400, `num_ctx` **12288** on every
-  call.
+- **Decoding:** temperature 0, seed 20261028, `num_predict` 400, `num_ctx` **16384** on every
+  call. It was 12288 for r0 and r1. It was raised from r2 on (user decision 2026-11-11) because
+  the 16-example few-shot prompt would not fit 5 test notes at 12288.
 - **Context:** whole notes, no chunking.
   - Before sending, the prompt length is estimated at 2.5 chars/token. A note that might not fit
     is not sent (error `truncated`).
-  - All dev / test_a / test_b notes fit under both strategies. Real prompts are 2–4k tokens.
-    With the 2026-11-09 prompts, the largest dev estimate is 5.6k (zero-shot) / 6.9k (few-shot)
-    of 12,288, at the conservative 2.5 chars/token.
+  - All dev / test_a / test_b notes fit under both strategies. With the r2 prompts, the
+    largest estimates at the conservative 2.5 chars/token are:
+    - zero-shot: dev 6.2k · test_a 8.7k · test_b 9.9k;
+    - few-shot: dev 10.2k · test_a 12.7k · test_b 13.9k;
+    - plus 400 output tokens, against a context of 16,384.
 - **Transport:** `requests` → `localhost:11434/api/chat` (no `ollama` package).
 - **Hardware (user decision 2026-10-28):** all runs on **CARC Discovery, `gpu` partition, A100**
   (`slurm/run_llm.sbatch`), using Ollama 0.40.12 with model IDs pinned in `slurm/models.txt`.
@@ -565,14 +568,25 @@ side in [`reports/rounds_dev.md`](reports/rounds_dev.md).
 - Predictions: the CARC files hold both rounds (r0 lines, then r1 lines; eval picks by hash).
   A spare copy of the run-1 download is in `data/prediction_runs/run1/`.
 
-**▶ Resume here: round r2 of prompt tuning (user decision 2026-11-11: another round).**
-1. Triage the r1 FPs / FNs in the triage viewer (round picker → r1), starting with qwen3
-   few-shot; the user writes synthetic notes for new patterns.
-2. Claude proposes r2 prompt changes → approval → register r2 (new hashes, snapshot) → tests →
-   commit / push.
-3. On CARC: `git pull`, rerun all 6 configs on dev, fill `carc_job`, copy predictions back,
-   `metrics --set dev`, `report_md --set dev`, hand-written summary, `compare_rounds`.
-4. Watch recall and llama3.1's quote verification. Then decide: another round, or `--freeze`.
+**Round r2 prompts (registered 2026-11-11).** The user wrote both prompts after the r1 triage.
+- `system.txt` is a two-test definition:
+  - (A) a conversation with the patient / family / HCP already took place, or they made an
+    overall-direction decision;
+  - (B) the conversation has content.
+- It also lists 9 always-no patterns and 3 yes patterns, plus a 4-step procedure, and requires
+  that `evidence_span` passes both A and B.
+- `fewshot.jsonl` has 16 synthetic examples (6 yes, 10 no), confirmed fully synthetic by the
+  user.
+- Hashes: zero-shot `98dca2eeac05`, few-shot `70187780106a`. `num_ctx` is now 16384 (§4.4).
+
+**▶ Resume here: dev run of round r2.**
+1. On CARC: `git pull`, then rerun all 6 configs on dev (`slurm/run_llm.sbatch`). The hashes
+   changed, so every note reruns.
+2. Fill `carc_job` for r2 in `src/llm/prompt_rounds/rounds.json`.
+3. Copy the predictions back into `data/predictions/`. Then run `metrics --set dev`,
+   `report_md --set dev`, write the hand-written summary, and run `compare_rounds`.
+4. Watch recall (8 gold positives) and quote verification. The longer prompt adds ~4k tokens per
+   few-shot call. Then decide: another round, or `--freeze`.
 
 **After that:**
 1. `--freeze`.

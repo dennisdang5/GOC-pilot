@@ -1,7 +1,7 @@
 """Prompt assembly for the two strategies.
 
 zero_shot: system + user(note).
-few_shot:  system + 3 synthetic examples as prior user/assistant turns + user(note).
+few_shot:  system + the synthetic examples in fewshot.jsonl as prior user/assistant turns + user(note).
 
 Both share the same system and user text, so the strategies differ only by the examples.
 Few-shot examples are synthetic (src/llm/fewshot.jsonl) and never come from MIMIC.

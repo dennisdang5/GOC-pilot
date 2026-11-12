@@ -40,7 +40,7 @@ PRED_DIR = ROOT / "data" / "predictions"
 FROZEN_PATH = PROMPT_DIR / "FROZEN"
 
 HOST = "http://localhost:11434"
-NUM_CTX = 12288
+NUM_CTX = 16384
 NUM_PREDICT = 400
 SEED = 20261028
 CHARS_PER_TOKEN = 2.5  # conservative for MIMIC text (abbreviations, punctuation)

@@ -32,7 +32,7 @@ flowchart TD
 
     subgraph LLM["Stage 4 · LLM pipeline (built)"]
         SYN[Synthetic few-shot<br/>3 notes] --> PROMPT[Prompts<br/>zero-shot · few-shot]
-        PROMPT --> RUN[Runner · Ollama on CARC A100<br/>llama3.1:8b · qwen3:8b · gemma3:4b<br/>num_ctx 12288 · JSON schema]
+        PROMPT --> RUN[Runner · Ollama on CARC A100<br/>llama3.1:8b · qwen3:8b · gemma3:4b<br/>num_ctx 16384 · JSON schema]
         RUN --> VAL[pydantic · evidence span check]
         VAL --> PRED[(predictions)]
         FREEZE[FROZEN prompt hashes] -.guards test sets.-> RUN
