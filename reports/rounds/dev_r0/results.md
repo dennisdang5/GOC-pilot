@@ -9,6 +9,25 @@ Round r0: run 2026-10-29, CARC job 13535035 (A100). Prompts: zero-shot `6a399107
 tables after a re-score. Numbers use the dev labels as revised on 2026-11-11 (8 yes · 22 no;
 CLAUDE.md §3.6).*
 
+### About F1 strict
+
+F1 strict is a stricter scoring of the same predictions. A model `yes` counts only if its quote
+(`evidence_span`) can be found word for word in the note.
+
+- **How it is calculated.**
+  - Each `yes` answer's quote is checked against the note. The match must be exact and
+    case-sensitive, with runs of whitespace treated as a single space.
+  - A `yes` whose quote is missing or not found is recounted as `no`. `no` answers are
+    unchanged.
+  - TP / FP / FN / TN, sensitivity, PPV and F1 are then recomputed in the usual way.
+- **Why it is reported.** It shows how well a model does when every `yes` must come with
+  evidence a reader can check. That matters for silver labeling, where most notes are never read
+  in full.
+- **How to read it.** The rule can only turn `yes` into `no`, so a wrong `yes` with a bad quote
+  becomes a correct `no`. A model with poor quotes can therefore score *higher* under strict
+  than under the primary rule (gemma3 few-shot here: 0.56 strict against 0.42 primary). Read strict F1 together with the quotes-verified
+  counts, not on its own.
+
 ### Findings
 
 1. **Recall is high; precision is the problem.** Four of the six configs find all 8 gold-yes

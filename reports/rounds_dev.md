@@ -8,6 +8,7 @@ Each round is one version of the prompts run on the 30 dev notes. All rounds are
 |---|---|---|---|---|---|
 | **r0** | 2026-10-29 | 13535035 (A100) | `6a3991073695` | `c13e3a72a57a` | Baseline: GOC definition + edge-case rules; few-shot adds 3 synthetic examples (direct yes, secondhand yes, hard no: planned meeting). |
 | **r1** | 2026-11-09 | 13933520 (A100) | `84e5a005cefb` | `eea596c7e013` | From dev triage (CMO status lines; planned meeting + family update): CMO / comfort orders join the code-status rule; planned meeting with a family update -> no, real conversation + follow-up -> yes; must find the sentence describing the conversation, and evidence_span must be that sentence; 4th few-shot example (hard no: CMO + update + planned meeting). |
+| **r2** (not scored yet) | 2026-11-11 | — (A100) | `98dca2eeac05` | `70187780106a` | User-written system prompt: two tests, (A) a conversation with the patient/family/HCP already happened, or they made an overall-direction decision (CMO, withdrawal, hospice, stop chemo), and (B) it has content (goals, values, prognosis shared, or a treatment preference/decision); 9 always-no patterns (code status, empty templates, planned talks, updates, team plans/consults, content-free meetings, medical management, comfort orders, stated preferences + referral), 3 yes patterns, a 4-step procedure; evidence_span must pass A and B. Few-shot: 16 synthetic examples (6 yes, 10 no), replacing the 4. num_ctx 12288 -> 16384 from r2 on, so every test note fits under few-shot. |
 
 ## Results by round (primary rule)
 

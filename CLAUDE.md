@@ -447,6 +447,10 @@ Decisions (user-approved 2026-10-29):
   - **primary**: `unclear` → no.
   - **exclude_unclear**: notes with gold `unclear` dropped.
   - **strict**: a `yes` without a verified span → no.
+    - Kept in every report (user decision 2026-11-11, after weighing removal).
+    - Each dev round's hand-written summary includes an "About F1 strict" paragraph: what the
+      rule is, how it is calculated, and that it can score a model with poor quotes higher than
+      the primary rule (e.g. gemma3 few-shot r0, 0.56 strict against 0.42 primary).
   - When a set has no gold `unclear` (dev, since 2026-11-06), `report_md.py` omits the unclear
     rule, unclear counts and exclude_unclear columns. They still appear for sets that have any.
 - Failed predictions (`parse`, `truncated`) → no, with a failure count per config.
