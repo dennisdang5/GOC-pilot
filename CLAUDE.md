@@ -8,7 +8,8 @@ tune prompts on dev, score the frozen prompts once on test, and then use the bes
 
 **Where things stand:** data prep, sampling, labeling, the LLM pipeline and evaluation are all
 built. Dev is being tuned in **rounds** (one prompt version each, all kept): see
-[`reports/rounds_dev.md`](reports/rounds_dev.md). Round r2 prompts are registered; the next step is the r2 dev run on CARC (§5).
+[`reports/rounds_dev.md`](reports/rounds_dev.md). Round r2 is scored and is planned as the last dev round; the group is choosing which configs
+go to the test run before `--freeze` (§5).
 
 ---
 
@@ -504,7 +505,7 @@ Decisions (user-approved 2026-10-29):
 
 ---
 
-## 5. Status and next steps (2026-11-11)
+## 5. Status and next steps (2026-11-17)
 
 **Labels (all in):**
 - dev 30/30 (5 members; 8 yes, 22 no, 0 unclear after the 2026-11-06 and 2026-11-11
@@ -583,19 +584,28 @@ side in [`reports/rounds_dev.md`](reports/rounds_dev.md).
   user.
 - Hashes: zero-shot `98dca2eeac05`, few-shot `70187780106a`. `num_ctx` is now 16384 (§4.4).
 
-**▶ Resume here: dev run of round r2.**
-1. On CARC: `git pull`, then rerun all 6 configs on dev (`slurm/run_llm.sbatch`). The hashes
-   changed, so every note reruns.
-2. Fill `carc_job` for r2 in `src/llm/prompt_rounds/rounds.json`.
-3. Copy the predictions back into `data/predictions/`. Then run `metrics --set dev`,
-   `report_md --set dev`, write the hand-written summary, and run `compare_rounds`.
-4. Watch recall (8 gold positives) and quote verification. The longer prompt adds ~4k tokens per
-   few-shot call. Then decide: another round, or `--freeze`.
+**Dev results, round r2 (CARC job 14030227, A100, scored 2026-11-17).** 179/180 calls ok
+(gemma3 few-shot `truncated` on ROW_ID 561002, gold no). Details and hand-written summary in
+[`reports/rounds/dev_r2/results.md`](reports/rounds/dev_r2/results.md).
+- Only gemma3 few-shot changed significantly from r1: −12 FP, +1 FN (Holm p = 0.021).
+- llama3.1 zero-shot leads on point estimates: F1 0.84 (sens 1.00, PPV 0.73, spec 0.86).
+  llama3.1 few-shot fell back to 0.67 (+3 FP). qwen3 few-shot 0.67, zero-shot 0.59.
+- The 8b configs are still tied (Holm p ≥ 0.078). Every 8b config has recall ≥ 0.75.
+- On this Mac, `../GOC-labeler` had to be pulled to get the 2026-11-11 label revision; r2 was
+  first scored on the stale labels, then re-scored with `--rescore` (no label changed).
+- Predictions: `data/predictions/` now holds r0, r1 and r2 lines (copy of
+  `data/prediction_runs/run2/`); the previous r0-only local files are in
+  `data/predictions_backup_r0only/`.
+
+**▶ Resume here: choose the test-run configs, then freeze (user decision 2026-11-17).**
+- The user plans to stop dev tuning at r2. The group decides which config(s) go to the test run.
+- The prompts are **not** frozen yet: `src/llm/prompts/FROZEN` does not exist.
+- Name the `--pair`s for the combined McNemar before the test run.
 
 **After that:**
-1. `--freeze`.
-2. A single test run (test_a + test_b).
-3. `--set combined` with pre-named `--pair`s.
+1. `--freeze` (records the r2 hashes), commit / push, `git pull` on CARC.
+2. A single test run (test_a + test_b) of the chosen configs.
+3. `--set combined` with the pre-named `--pair`s.
 4. Stage 6, silver labeling: the full pool takes ≈ 2 days per config at ~2.5 s/note, so
    subsample.
 

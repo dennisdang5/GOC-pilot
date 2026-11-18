@@ -16,7 +16,7 @@
   "r2": {
     "date": "2026-11-11",
     "prompt_hash": {"zero_shot": "98dca2eeac05", "few_shot": "70187780106a"},
-    "carc_job": null,
+    "carc_job": "14030227",
     "gpu": "A100",
     "changes": "User-written system prompt: two tests, (A) a conversation with the patient/family/HCP already happened, or they made an overall-direction decision (CMO, withdrawal, hospice, stop chemo), and (B) it has content (goals, values, prognosis shared, or a treatment preference/decision); 9 always-no patterns (code status, empty templates, planned talks, updates, team plans/consults, content-free meetings, medical management, comfort orders, stated preferences + referral), 3 yes patterns, a 4-step procedure; evidence_span must pass A and B. Few-shot: 16 synthetic examples (6 yes, 10 no), replacing the 4. num_ctx 12288 -> 16384 from r2 on, so every test note fits under few-shot."
   }

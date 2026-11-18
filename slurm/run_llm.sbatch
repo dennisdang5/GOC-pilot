@@ -11,7 +11,8 @@
 # Submit from the repo root (after slurm/carc_setup.sh):
 #   sbatch --account=<project_id> slurm/run_llm.sbatch [dev|test_a|test_b]
 # Use the same GPU type for every set; to use an A40 instead, add --gres=gpu:a40:1.
-# Resumable: resubmitting skips ROW_IDs that already have an error-free prediction.
+# Resumable: resubmitting skips ROW_IDs that already have an error-free prediction made with the
+# current prompts; after a prompt change every note is rerun (see src/llm/rounds.py).
 set -uo pipefail
 cd "$SLURM_SUBMIT_DIR"
 
