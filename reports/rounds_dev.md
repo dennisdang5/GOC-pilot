@@ -74,6 +74,13 @@ Point-estimate differences (new minus previous); `F1 vs r0` compares with the fi
 
 Counts are notes only the previous round or only the new round got right. "better" / "worse" need Holm p < 0.05; otherwise the rounds are comparable.
 
+How the test works, in plain terms:
+
+- It ignores notes that both rounds got right or both got wrong, and looks only at the notes where they disagree.
+- If the new round wins most of those notes, the change is probably real. If the split is close to even, it could just be luck.
+- **p** is the chance of a split at least this lopsided if the change made no real difference. Below 0.05 counts as a real change.
+- **Holm p** raises the bar, because we run one test per config at every step. The more tests you run, the more likely one passes by luck.
+
 | config | step | only previous right | only new right | p | Holm p |  |
 |---|---|---|---|---|---|---|
 | `gemma3-4b_few_shot` | r0 → r1 | 0 | 0 | 1.000 | 1.000 | comparable |

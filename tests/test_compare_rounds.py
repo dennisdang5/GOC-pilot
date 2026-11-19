@@ -50,6 +50,7 @@ def test_render_lists_rounds_deltas_and_tests():
     assert "r0 → r1" in md and "| -11 | +1 |" in md
     assert "better" in md
     assert "Δ F1" in md
+    assert "How the test works, in plain terms:" in md
 
 
 def test_grounded_recall_column_reads_old_and_new_rounds():

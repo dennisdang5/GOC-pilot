@@ -193,7 +193,16 @@ def render(r: dict, summary: str | None = None, round_entry: dict | None = None)
         tag = "exploratory, all pairs" if mc["exploratory"] else "pre-named pairs"
         L += [f"## Model comparisons (exact McNemar, Holm-adjusted; {tag})", "",
               "Counts are notes that only A or only B got right. Pairs with Holm p ≥ 0.05 "
-              "should be called comparable.", ""]
+              "should be called comparable.", "",
+              "How the test works, in plain terms:", "",
+              "- It ignores notes that both models got right or both got wrong, and looks only "
+              "at the notes where they disagree.",
+              "- If one model wins most of those notes, it is probably really better. If the "
+              "split is close to even, the difference could just be luck.",
+              "- **p** is the chance of a split at least this lopsided if the two models were "
+              "really equally good. Below 0.05 counts as a real difference.",
+              "- **Holm p** raises the bar, because we compare many pairs. The more tests you "
+              "run, the more likely one passes by luck.", ""]
         L += _table(["A", "B", "only A right", "only B right", "p", "Holm p", ""],
                     [[f"`{p['a']}`", f"`{p['b']}`", p["only_a_correct"], p["only_b_correct"],
                       _pval(p["p"]), _pval(p["p_holm"]),

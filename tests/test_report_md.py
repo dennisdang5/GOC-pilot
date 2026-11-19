@@ -52,6 +52,7 @@ def test_sections_and_flags():
                     "## Model comparisons", "## How to read this"):
         assert heading in md
     assert "comparable" in md
+    assert "How the test works, in plain terms:" in md
     assert "## By part" not in md
 
 
