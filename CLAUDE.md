@@ -609,12 +609,13 @@ few-shot examples instead of the 16 r2 examples.
   In `rounds_dev.md`, zero-shot r2 → r3 shows no change by construction.
 - `tests/test_llm_prompts.py` now expects 4 examples (2 yes, 2 no).
 
-**▶ Resume here: dev run of round r3.**
-1. On CARC: `git pull`, then `sbatch --account=xiangren_1987 slurm/run_llm.sbatch dev`. This is
-   the usual command for all 6 configs. Zero-shot prints "skipped 30", and only the 3 few-shot
-   configs run.
-2. Fill `carc_job` for r3 in `src/llm/prompt_rounds/rounds.json`, then copy the predictions back
-   into `data/predictions/`.
+**▶ Resume here: r3 dev run submitted (CARC job 14366175, 2026-11-19); score it when it's done.**
+- Done: commit `f62fa33` pushed, CARC `git pull`, job **14366175** submitted. `carc_job` is
+  filled in `rounds.json` and committed.
+1. Check the job: `squeue -u dennisda`, then `tail -n 40 slurm/logs/goc-llm-14366175.out`.
+   Expect zero-shot `skipped 30 | ok 0` and few-shot `ok 30` for each of the 3 models.
+2. Copy `~/GOC-pilot/data/predictions/*.jsonl` from CARC into `data/predictions/` on the PC
+   (as for r2).
 3. `metrics --set dev` → `report_md --set dev` → hand-written summary (with "About F1 strict") →
    `compare_rounds`. The key comparison is few-shot r2 → r3.
 4. Then: the group chooses the test-run config(s) and names the `--pair`s for the combined
