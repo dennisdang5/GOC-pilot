@@ -55,7 +55,8 @@ def test_render_lists_rounds_deltas_and_tests():
 def test_grounded_recall_column_reads_old_and_new_rounds():
     scored = {"r0": fake_eval([6], [1], old_style=True), "r1": fake_eval([6], [1])}
     md = cr.render(ROUNDS, scored)
-    assert "| grounded recall |" in md and "F1 strict" not in md
+    assert "| grounded recall |" in md
+    assert "- **grounded recall**:" in md and "- **quotes verified (yes)**:" in md
     assert md.count(m.fmt(m.wilson(4, 5))) >= 2  # same value from strict and from the new key
 
 

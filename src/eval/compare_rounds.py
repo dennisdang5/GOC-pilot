@@ -102,7 +102,14 @@ def render(rounds: dict[str, dict], scored: dict[str, dict]) -> str:
 
     L += ["## Results by round (primary rule)", "",
           "Proportions show the estimate and its 95% Wilson CI. Configs are sorted by F1 in the "
-          f"newest round ({ids[-1]}).", ""]
+          f"newest round ({ids[-1]}).", "",
+          "- **quotes verified (yes)**: each `yes` answer comes with a quote from the note as "
+          "evidence. This counts how many of those quotes were found in the note word for word "
+          "(verified / given). It covers all `yes` answers, right or wrong.",
+          "- **grounded recall**: of the gold-`yes` notes, the share the model called `yes` with "
+          "a verified quote. A bad quote can only lower it. It replaced F1 strict on 2026-11-19, "
+          "which could score a model with bad quotes *higher* (a wrong `yes` with a bad quote "
+          "was recounted as a correct `no`).", ""]
     rows = []
     for c in configs:
         for rid in ids:

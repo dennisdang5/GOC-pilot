@@ -15,6 +15,9 @@ Each round is one version of the prompts run on the 30 dev notes. All rounds are
 
 Proportions show the estimate and its 95% Wilson CI. Configs are sorted by F1 in the newest round (r3).
 
+- **quotes verified (yes)**: each `yes` answer comes with a quote from the note as evidence. This counts how many of those quotes were found in the note word for word (verified / given). It covers all `yes` answers, right or wrong.
+- **grounded recall**: of the gold-`yes` notes, the share the model called `yes` with a verified quote. A bad quote can only lower it. It replaced F1 strict on 2026-11-19, which could score a model with bad quotes *higher* (a wrong `yes` with a bad quote was recounted as a correct `no`).
+
 | config | round | TP / FP / FN / TN | sensitivity (recall) | PPV (precision) | specificity | F1 | grounded recall | quotes verified (yes) |
 |---|---|---|---|---|---|---|---|---|
 | `llama3.1-8b_zero_shot` | r0 | 7 / 8 / 1 / 14 | 0.88 (0.53-0.98) | 0.47 (0.25-0.70) | 0.64 (0.43-0.80) | 0.61 | 0.62 (0.31-0.86) | 10 / 15 |
