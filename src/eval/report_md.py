@@ -18,7 +18,7 @@ import json
 import sys
 from pathlib import Path
 
-from src.eval.metrics import PARTS, REPORT_DIR, fmt, output_paths
+from src.eval.metrics import PARTS, REPORT_DIR, fmt, grounded_recall, output_paths
 from src.llm.rounds import current_round, load_rounds
 
 SUMMARY_START = "<!-- summary:start -->"
@@ -27,7 +27,6 @@ SUMMARY_END = "<!-- summary:end -->"
 VARIANT_TEXT = {
     "primary": "gold `unclear` counted as `no`",
     "exclude_unclear": "notes with gold `unclear` removed",
-    "strict": "a model `yes` without a verified evidence span counted as `no`",
 }
 
 
@@ -102,7 +101,7 @@ def render(r: dict, summary: str | None = None, round_entry: dict | None = None)
     n_pos = r["gold"].get("yes", 0)
     # With no gold `unclear` labels, the unclear rule and exclude_unclear are no-ops: omit them.
     has_unclear = r["gold"].get("unclear", 0) > 0
-    variants = ("exclude_unclear", "strict") if has_unclear else ("strict",)
+    variants = ("exclude_unclear",) if has_unclear else ()
     title = f"# Results: {r['set']} set" + (f", round {r['round']}" if r.get("round") else "")
     L = [title, ""]
     if round_entry:
@@ -159,30 +158,34 @@ def render(r: dict, summary: str | None = None, round_entry: dict | None = None)
         breakdown("by_stratum", "By stratum")
     breakdown("by_part", "By part")
 
-    L += ["## Sensitivity analyses", ""]
-    for v in variants:
-        L += [f"- **{v}**: {VARIANT_TEXT[v]}."]
-    L.append("")
-    rows = []
-    for c in order:
-        row = [f"`{c}`", _f1(cfgs[c]["primary"]["f1"])]
+    if variants:
+        L += ["## Sensitivity analyses", ""]
         for v in variants:
-            m = cfgs[c][v]
-            row += [fmt(m["sensitivity"]), fmt(m["ppv"]), _f1(m["f1"])]
-        rows.append(row)
-    short = {"exclude_unclear": "excl.", "strict": "strict"}
-    header = ["config", "F1 primary"]
-    for v in variants:
-        header += [f"sens/recall {short[v]}", f"PPV/precision {short[v]}", f"F1 {short[v]}"]
-    L += _table(header, rows)
-    L.append("")
+            L += [f"- **{v}**: {VARIANT_TEXT[v]}."]
+        L.append("")
+        rows = []
+        for c in order:
+            row = [f"`{c}`", _f1(cfgs[c]["primary"]["f1"])]
+            for v in variants:
+                m = cfgs[c][v]
+                row += [fmt(m["sensitivity"]), fmt(m["ppv"]), _f1(m["f1"])]
+            rows.append(row)
+        short = {"exclude_unclear": "excl."}
+        header = ["config", "F1 primary"]
+        for v in variants:
+            header += [f"sens/recall {short[v]}", f"PPV/precision {short[v]}", f"F1 {short[v]}"]
+        L += _table(header, rows)
+        L.append("")
 
     L += ["## Evidence spans", "",
           "Each quote the model gives is checked for an exact (whitespace-normalized, "
-          "case-sensitive) match in the note. Shown as verified / given.", ""]
-    L += _table(["config", "on `yes` answers", "on `no` answers"],
+          "case-sensitive) match in the note. Shown as verified / given. **Grounded recall** is "
+          "the share of gold-`yes` notes the model called `yes` with a verified quote (95% "
+          "Wilson CI); a bad quote can only lower it.", ""]
+    L += _table(["config", "on `yes` answers", "on `no` answers", "grounded recall"],
                 [[f"`{c}`", "{verified} / {spans}".format(**cfgs[c]["spans"]["yes"]),
-                  "{verified} / {spans}".format(**cfgs[c]["spans"]["no"])] for c in order])
+                  "{verified} / {spans}".format(**cfgs[c]["spans"]["no"]),
+                  fmt(grounded_recall(cfgs[c]))] for c in order])
     L.append("")
 
     mc = r["mcnemar"]

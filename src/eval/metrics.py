@@ -16,7 +16,10 @@ the prompts are frozen (src/llm/prompts/FROZEN), and their label files are not o
 Rules (user-approved 2026-10-29):
 - Gold "unclear" counts as "no" (primary). Variant exclude_unclear drops those notes.
 - Failed predictions (parse / truncated) count as "no"; the failure count is reported per config.
-- Variant strict: a "yes" without a verified evidence span counts as "no".
+- Grounded recall: gold-yes notes the model called "yes" with a verified evidence span, over all
+  gold-yes notes (Wilson CI). It replaced the "strict" variant on 2026-11-19: strict PPV /
+  specificity / F1 rewarded bad quotes (a wrong "yes" with an unverified quote became a correct
+  "no"). Old eval.json files keep "strict"; grounded_recall() reads either.
 - Sensitivity, PPV and specificity with 95% Wilson CIs; F1 is a point estimate (not a proportion).
   Undefined metrics are None (printed NA), never 0.
 - Per-stratum breakdowns; strata with fewer than 5 gold positives are flagged few_positives.
@@ -170,11 +173,18 @@ def configs_in(df: pd.DataFrame) -> list[str]:
 
 # --- scoring ---------------------------------------------------------------------------------
 
-def predicted_yes(df: pd.DataFrame, config: str, strict: bool = False) -> pd.Series:
+def predicted_yes(df: pd.DataFrame, config: str, verified_only: bool = False) -> pd.Series:
     yes = df[f"{config}|answer"].eq("yes")  # failures (None) count as no
-    if strict:
+    if verified_only:
         yes &= df[f"{config}|verified"].eq(True)
     return yes
+
+
+def grounded_recall(cfg: dict) -> dict | None:
+    """Grounded recall of one config's scores; falls back to old files' strict sensitivity."""
+    if "grounded_recall" in cfg:
+        return cfg["grounded_recall"]
+    return cfg["strict"]["sensitivity"]
 
 
 def score_config(df: pd.DataFrame, config: str) -> dict:
@@ -192,7 +202,8 @@ def score_config(df: pd.DataFrame, config: str) -> dict:
     return {
         "primary": scores(confusion(gold, pred)),
         "exclude_unclear": scores(confusion(gold[keep], pred[keep])),
-        "strict": scores(confusion(gold, predicted_yes(df, config, strict=True))),
+        "grounded_recall": wilson(int((gold & predicted_yes(df, config, verified_only=True)).sum()),
+                                  int(gold.sum())),
         "by_stratum": by_stratum,
         "by_part": {p: scores(confusion(gold[i], pred[i]))
                     for p, i in df.groupby("part").groups.items()} if df["part"].nunique() > 1
@@ -268,7 +279,7 @@ def print_report(r: dict) -> None:
     print(f"set {r['set']}: n={r['n']}  gold {r['gold']}  by stratum {r['gold_by_stratum']}")
     head = f"{'config':<26}{'fail':>5}{'TP':>4}{'FP':>4}{'FN':>4}{'TN':>4}  " \
            f"{'sensitivity':<18}{'PPV':<18}{'specificity':<18}{'F1':>5}"
-    for variant in ("primary", "exclude_unclear", "strict"):
+    for variant in ("primary", "exclude_unclear"):
         print(f"\n[{variant}]\n{head}")
         for c, s in r["configs"].items():
             m = s[variant]
@@ -282,11 +293,11 @@ def print_report(r: dict) -> None:
                  f"{fmt(m['specificity'])}{' *' if m['few_positives'] else ''}"
                  for k, m in s["by_stratum"].items()]
         print(f"{c:<26}" + " | ".join(cells))
-    print("\n[spans]  on yes: verified/given   on no: verified/given   failures")
+    print("\n[spans]  on yes: verified/given   on no: verified/given   grounded recall   failures")
     for c, s in r["configs"].items():
         y, n = s["spans"]["yes"], s["spans"]["no"]
         print(f"{c:<26}{y['verified']:>3}/{y['spans']:<3}  {n['verified']:>10}/{n['spans']:<3}"
-              f"  {s['failures']['by_type'] or '-'}")
+              f"  {fmt(grounded_recall(s)):<18}{s['failures']['by_type'] or '-'}")
     mc = r["mcnemar"]
     if mc["pairs"]:
         tag = "exploratory, " if mc["exploratory"] else ""

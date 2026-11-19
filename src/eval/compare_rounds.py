@@ -17,7 +17,7 @@ import json
 import sys
 from pathlib import Path
 
-from src.eval.metrics import REPORT_DIR, fmt, holm, mcnemar_p, output_paths
+from src.eval.metrics import REPORT_DIR, fmt, grounded_recall, holm, mcnemar_p, output_paths
 from src.eval.report_md import _f1, _pval, _table
 from src.llm.rounds import load_rounds
 
@@ -112,10 +112,11 @@ def render(rounds: dict[str, dict], scored: dict[str, dict]) -> str:
             m, y = s["primary"], s["spans"]["yes"]
             rows.append([f"`{c}`", rid, "{tp} / {fp} / {fn} / {tn}".format(**m),
                          fmt(m["sensitivity"]), fmt(m["ppv"]), fmt(m["specificity"]),
-                         _f1(m["f1"]), _f1(s["strict"]["f1"]),
+                         _f1(m["f1"]), fmt(grounded_recall(s)),
                          f"{y['verified']} / {y['spans']}"])
     L += _table(["config", "round", "TP / FP / FN / TN", "sensitivity (recall)",
-                 "PPV (precision)", "specificity", "F1", "F1 strict", "quotes verified (yes)"],
+                 "PPV (precision)", "specificity", "F1", "grounded recall",
+                 "quotes verified (yes)"],
                 rows) + [""]
 
     if len(ids) < 2:

@@ -14,11 +14,12 @@ ROUNDS = {
 ROW_IDS = list(range(1, 21))  # gold yes: 1-5, no: 6-20
 
 
-def fake_eval(fps: list[int], fns: list[int], fingerprint="g") -> dict:
+def fake_eval(fps: list[int], fns: list[int], fingerprint="g", old_style=False) -> dict:
     tp, fn = 5 - len(fns), len(fns)
     fp, tn = len(fps), 15 - len(fps)
     s = m.scores({"tp": tp, "fp": fp, "fn": fn, "tn": tn})
-    cfg = {"primary": s, "strict": s, "spans": {"yes": {"spans": tp + fp, "verified": tp},
+    grounded = {"strict": s} if old_style else {"grounded_recall": m.wilson(tp, 5)}
+    cfg = {"primary": s, **grounded, "spans": {"yes": {"spans": tp + fp, "verified": tp},
                                                "no": {"spans": 0, "verified": 0}},
            "false_positives": fps, "false_negatives": fns}
     return {"set": "dev", "n": 20, "row_ids": ROW_IDS, "gold_fingerprint": fingerprint,
@@ -49,6 +50,13 @@ def test_render_lists_rounds_deltas_and_tests():
     assert "r0 → r1" in md and "| -11 | +1 |" in md
     assert "better" in md
     assert "Δ F1" in md
+
+
+def test_grounded_recall_column_reads_old_and_new_rounds():
+    scored = {"r0": fake_eval([6], [1], old_style=True), "r1": fake_eval([6], [1])}
+    md = cr.render(ROUNDS, scored)
+    assert "| grounded recall |" in md and "F1 strict" not in md
+    assert md.count(m.fmt(m.wilson(4, 5))) >= 2  # same value from strict and from the new key
 
 
 def test_render_single_round_and_unscored():

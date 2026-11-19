@@ -76,8 +76,12 @@ def test_evaluate_rules(dev_setup):
     assert (good["primary"]["tp"], good["primary"]["fp"], good["primary"]["fn"],
             good["primary"]["tn"]) == (2, 0, 0, 4)
     assert good["failures"] == {"n": 1, "by_type": {"truncated": [6]}}
-    # strict: unverified yes on 2 becomes no
-    assert (good["strict"]["tp"], good["strict"]["fn"]) == (1, 1)
+    # grounded recall: only the verified yes on 1 counts, out of 2 gold yes
+    assert (good["grounded_recall"]["k"], good["grounded_recall"]["n"]) == (1, 2)
+    assert "strict" not in good
+    assert m.grounded_recall(good) == good["grounded_recall"]
+    # old eval.json files only have "strict": fall back to its sensitivity
+    assert m.grounded_recall({"strict": {"sensitivity": {"k": 3, "n": 4}}}) == {"k": 3, "n": 4}
     assert good["spans"] == {"yes": {"spans": 2, "verified": 1}, "no": {"spans": 0, "verified": 0}}
 
     # unclear counts as no in primary; excluded in exclude_unclear

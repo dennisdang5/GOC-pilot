@@ -17,7 +17,7 @@ def _m(tp, fp, fn, tn, f1, few=None):
 
 
 def _cfg(m, fps, fns):
-    return {"primary": m, "exclude_unclear": m, "strict": m,
+    return {"primary": m, "exclude_unclear": m, "grounded_recall": _p(1, 2),
             "by_stratum": {"cues_present": {**m, "few_positives": False},
                            "cues_missing": _m(0, 0, 1, 2, None, few=True)},
             "by_part": None, "failures": {"n": 0, "by_type": {}},
@@ -48,8 +48,8 @@ def test_main_table_sorted_by_f1_with_na():
 
 def test_sections_and_flags():
     md = render(REPORT)
-    for heading in ("## Main results", "## By stratum", "## Sensitivity analyses",
-                    "## Evidence spans", "## Model comparisons", "## How to read this"):
+    for heading in ("## Main results", "## By stratum", "## Evidence spans",
+                    "## Model comparisons", "## How to read this"):
         assert heading in md
     assert "comparable" in md
     assert "## By part" not in md
@@ -57,7 +57,7 @@ def test_sections_and_flags():
 
 def test_dev_strata_compact_one_row_per_config():
     md = render(REPORT)
-    sec = md[md.index("## By stratum"):md.index("## Sensitivity analyses")]
+    sec = md[md.index("## By stratum"):md.index("## Evidence spans")]
     rows = [ln for ln in sec.splitlines() if ln.startswith("| `")]
     assert len(rows) == 2
     good = next(ln for ln in rows if "good_few_shot" in ln)
@@ -67,7 +67,7 @@ def test_dev_strata_compact_one_row_per_config():
 
 def test_test_set_keeps_full_strata_table():
     md = render({**REPORT, "set": "test_a"})
-    sec = md[md.index("## By stratum"):md.index("## Sensitivity analyses")]
+    sec = md[md.index("## By stratum"):md.index("## Evidence spans")]
     assert "`cues_missing` *" in sec
     assert "| config | group |" in sec
 
@@ -94,9 +94,25 @@ def test_no_summary_block():
 def test_unclear_omitted_when_none():
     md = render(REPORT)  # synthetic gold has no `unclear`
     assert "unclear" not in md and "excl." not in md
-    assert "| config | F1 primary | sens/recall strict |" in md
+    assert "## Sensitivity analyses" not in md  # nothing left to show without unclear
 
 
 def test_unclear_kept_when_present():
     md = render({**REPORT, "gold": {"yes": 2, "no": 3, "unclear": 1}})
     assert "unclear 1" in md and "exclude_unclear" in md and "F1 excl." in md
+    assert "## Sensitivity analyses" in md
+
+
+def test_grounded_recall_replaces_strict():
+    md = render(REPORT)
+    assert "strict" not in md.lower()
+    assert "| config | on `yes` answers | on `no` answers | grounded recall |" in md
+    assert "0.50 (0.10-0.90)" in md
+
+
+def test_old_report_with_strict_still_renders():
+    old = {**REPORT, "configs": {
+        c: {**{k: v for k, v in s.items() if k != "grounded_recall"}, "strict": s["primary"]}
+        for c, s in REPORT["configs"].items()}}
+    md = render(old)
+    assert "strict" not in md.lower() and "grounded recall" in md

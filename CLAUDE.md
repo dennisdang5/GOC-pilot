@@ -183,7 +183,8 @@ order.
 - **The screening regex (`src/sampling/`) is a sampling tool, never a method under evaluation.**
   `src/eval/` must not import it (`tests/test_eval_independence.py` enforces this).
 - Every LLM evidence span is checked for exact (whitespace-normalized) presence in the source
-  note. Report the verification rate per model.
+  note. Report the verification rate per model, and **grounded recall** (gold-yes notes found
+  with a verified span ÷ gold yes, §4.5).
 - `[** **]` de-identification placeholders are handled identically for every method.
 
 ### 3.5 Limitations to report
@@ -228,6 +229,12 @@ order.
   - Caveat: these revisions were made after seeing model output, so dev scores are optimistic.
     The review covered the r1 FPs that were called yes by many configs and all the r1 FNs, not
     every dev note.
+- **2026-11-19, strict variant replaced by grounded recall.** The strict rule (a `yes` without a
+  verified span counts as `no`; kept on 2026-11-11) rewarded bad quotes: a wrong `yes` with an
+  unverified quote became a correct `no`. gemma3 few-shot scored higher under strict F1 than under
+  primary F1 in all four dev rounds (r3: 0.67 vs 0.44). Strict PPV / specificity / F1 were
+  dropped from reports. Grounded recall (= the old strict sensitivity) and the verified-quote
+  counts remain. Decided on dev aggregates only, before the freeze and before any test scoring.
 
 ---
 
@@ -447,13 +454,15 @@ Decisions (user-approved 2026-10-29):
 - Scoring variants:
   - **primary**: `unclear` → no.
   - **exclude_unclear**: notes with gold `unclear` dropped.
-  - **strict**: a `yes` without a verified span → no.
-    - Kept in every report (user decision 2026-11-11, after weighing removal).
-    - Each dev round's hand-written summary includes an "About F1 strict" paragraph: what the
-      rule is, how it is calculated, and that it can score a model with poor quotes higher than
-      the primary rule (e.g. gemma3 few-shot r0, 0.56 strict against 0.42 primary).
   - When a set has no gold `unclear` (dev, since 2026-11-06), `report_md.py` omits the unclear
-    rule, unclear counts and exclude_unclear columns. They still appear for sets that have any.
+    rule, unclear counts and the exclude_unclear section. They still appear for sets that have
+    any.
+- **Grounded recall** (replaced the `strict` variant, user decision 2026-11-19, §3.6): gold-yes
+  notes the model called yes with a verified span ÷ all gold-yes notes, with a Wilson CI. It is
+  shown in the evidence-spans table next to the verified / given counts. A bad quote can only
+  lower it. r0–r3 eval.json files still hold `strict`; `metrics.grounded_recall()` reads its
+  sensitivity (the same number), so they are not re-scored. Their results.md files (with
+  "About F1 strict" paragraphs) are kept as history.
 - Failed predictions (`parse`, `truncated`) → no, with a failure count per config.
   `num_predict` stays 400.
 - Sensitivity, PPV and specificity with Wilson 95% CIs. F1 is a point estimate only (default
@@ -483,7 +492,7 @@ Decisions (user-approved 2026-10-29):
     round without `--rescore` (use it only after a label revision, and log that in §3.6).
     eval.json also stores the round, its hashes, the ROW_IDs and a gold fingerprint.
   - `src/eval/compare_rounds.py` → `reports/rounds_dev.md`: rounds table; per config × round
-    TP/FP/FN/TN, sensitivity, PPV, specificity (Wilson), F1, strict F1, verified quotes; Δ vs the
+    TP/FP/FN/TN, sensitivity, PPV, specificity (Wilson), F1, grounded recall, verified quotes; Δ vs the
     previous round and F1 vs r0; exact McNemar per config for each step, Holm across configs
     within a step ("better" / "worse" only if Holm p < 0.05, else "comparable"). Refuses rounds
     scored on different notes or gold. Reads aggregates only.
@@ -624,6 +633,10 @@ hand-written summary in [`reports/rounds/dev_r3/results.md`](reports/rounds/dev_
   only the flat first-round ones; the r1–r3 raw replies are still on CARC only (not used by
   eval).
 
+**Reporting change (2026-11-19):** F1 strict is gone from all new reports, replaced by grounded
+recall (§3.6, §4.5). `reports/rounds_dev.md` was regenerated; the r0–r3 results.md files were
+left as they were.
+
 **▶ Resume here: the group chooses the test config(s); then freeze.**
 1. The group chooses the test-run config(s) and names the `--pair`s for the combined McNemar.
    The prompts are **not** frozen yet: `src/llm/prompts/FROZEN` does not exist.
@@ -660,7 +673,9 @@ hand-written summary in [`reports/rounds/dev_r3/results.md`](reports/rounds/dev_
 - **Config**: model + prompting strategy (zero_shot or few_shot).
 - **Evidence span**: the verbatim quote a model gives for its answer. It is "verified" if it
   appears exactly in the note.
-- **Primary / exclude_unclear / strict**: scoring variants (§4.5).
+- **Primary / exclude_unclear**: scoring variants (§4.5).
+- **Grounded recall**: share of gold-yes notes the model called yes with a verified quote (§4.5).
+  It replaced the old "strict" variant / F1 strict.
 - **Sensitivity** (= recall): share of true GOC notes the model finds. **PPV**: share of the model's yes
   calls that are right. **Specificity**: share of non-GOC notes the model correctly calls no.
   **F1**: harmonic mean of sensitivity and PPV.
