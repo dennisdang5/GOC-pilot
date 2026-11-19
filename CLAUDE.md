@@ -8,9 +8,8 @@ tune prompts on dev, score the frozen prompts once on test, and then use the bes
 
 **Where things stand:** data prep, sampling, labeling, the LLM pipeline and evaluation are all
 built. Dev is being tuned in **rounds** (one prompt version each, all kept): see
-[`reports/rounds_dev.md`](reports/rounds_dev.md). Round r2 is scored. Round r3 (r2 system prompt + the 4 r1 few-shot examples)
-is registered; the next step is the r3 dev run on CARC, then the choice of test configs and
-`--freeze` (§5).
+[`reports/rounds_dev.md`](reports/rounds_dev.md). Rounds r0–r3 are scored. The next step is the
+group's choice of test configs and `--pair`s, then `--freeze` (§5).
 
 ---
 
@@ -506,7 +505,7 @@ Decisions (user-approved 2026-10-29):
 
 ---
 
-## 5. Status and next steps (2026-11-19)
+## 5. Status and next steps (2026-11-19, r3 scored)
 
 **Labels (all in):**
 - dev 30/30 (5 members; 8 yes, 22 no, 0 unclear after the 2026-11-06 and 2026-11-11
@@ -609,19 +608,28 @@ few-shot examples instead of the 16 r2 examples.
   In `rounds_dev.md`, zero-shot r2 → r3 shows no change by construction.
 - `tests/test_llm_prompts.py` now expects 4 examples (2 yes, 2 no).
 
-**▶ Resume here: r3 dev run submitted (CARC job 14366175, 2026-11-19); score it when it's done.**
-- Done: commit `f62fa33` pushed, CARC `git pull`, job **14366175** submitted. `carc_job` is
-  filled in `rounds.json` and committed.
-1. Check the job: `squeue -u dennisda`, then `tail -n 40 slurm/logs/goc-llm-14366175.out`.
-   Expect zero-shot `skipped 30 | ok 0` and few-shot `ok 30` for each of the 3 models.
-2. Copy `~/GOC-pilot/data/predictions/*.jsonl` from CARC into `data/predictions/` on the PC
-   (as for r2).
-3. `metrics --set dev` → `report_md --set dev` → hand-written summary (with "About F1 strict") →
-   `compare_rounds`. The key comparison is few-shot r2 → r3.
-4. Then: the group chooses the test-run config(s) and names the `--pair`s for the combined
-   McNemar. The prompts are **not** frozen yet: `src/llm/prompts/FROZEN` does not exist.
-   Freezing records whichever prompt files are current, so set `fewshot.jsonl` to the chosen
-   round's version first.
+**Dev results, round r3 (CARC job 14366175, A100, scored 2026-11-19).** Few-shot 89/90 calls ok
+(gemma3 `truncated` on ROW_ID 561002 again, gold no); zero-shot skipped as planned. Details and
+hand-written summary in [`reports/rounds/dev_r3/results.md`](reports/rounds/dev_r3/results.md).
+- No few-shot config changed significantly from r2 (Holm p ≥ 0.070).
+- llama3.1 few-shot: −2 FP net (3 fixed, 1 new), F1 0.67 → 0.75 (sens 0.75, PPV 0.75,
+  spec 0.91); still below r1 (0.80).
+- qwen3 few-shot: identical answers on all 30 notes (F1 0.67).
+- gemma3 few-shot: back to yes on almost everything (+10 FP, −1 FN, spec 0.55 → 0.09, Holm
+  p = 0.070). The 16 r2 examples are what helped it.
+- llama3.1 zero-shot still leads (F1 0.84, unchanged). The 8b configs are still tied (Holm
+  p ≥ 0.062).
+- Predictions: `data/predictions/` now holds the full CARC files (r0–r3; few-shot 120 lines,
+  zero-shot 90), copied from `data/prediction_runs/run3/`. The downloaded raw replies there are
+  only the flat first-round ones; the r1–r3 raw replies are still on CARC only (not used by
+  eval).
+
+**▶ Resume here: the group chooses the test config(s); then freeze.**
+1. The group chooses the test-run config(s) and names the `--pair`s for the combined McNemar.
+   The prompts are **not** frozen yet: `src/llm/prompts/FROZEN` does not exist.
+2. Freezing records whichever prompt files are current, so set `fewshot.jsonl` to the chosen
+   round's version first. It is currently r3's (4 examples). The zero-shot prompt is the same in
+   r2 and r3.
 
 **After that:**
 1. `--freeze` (records the chosen round's hashes), commit / push, `git pull` on CARC.
