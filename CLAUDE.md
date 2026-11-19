@@ -8,8 +8,9 @@ tune prompts on dev, score the frozen prompts once on test, and then use the bes
 
 **Where things stand:** data prep, sampling, labeling, the LLM pipeline and evaluation are all
 built. Dev is being tuned in **rounds** (one prompt version each, all kept): see
-[`reports/rounds_dev.md`](reports/rounds_dev.md). Round r2 is scored and is planned as the last dev round; the group is choosing which configs
-go to the test run before `--freeze` (§5).
+[`reports/rounds_dev.md`](reports/rounds_dev.md). Round r2 is scored. Round r3 (r2 system prompt + the 4 r1 few-shot examples)
+is registered; the next step is the r3 dev run on CARC, then the choice of test configs and
+`--freeze` (§5).
 
 ---
 
@@ -381,8 +382,8 @@ Decisions (user-approved 2026-10-28):
 - **Strategies:** `zero_shot` and `few_shot`.
   - Both share `src/llm/prompts/system.txt` (definition + edge-case table) and `user.txt`.
   - Few-shot adds **synthetic** examples (`src/llm/fewshot.jsonl`) as prior user / assistant
-    turns: 3 in r0, 4 in r1, and **16** (6 yes, 10 no; written by the user) from r2
-    (2026-11-11).
+    turns: 3 in r0, 4 in r1, **16** (6 yes, 10 no; written by the user) in r2 (2026-11-11),
+    and the 4 r1 examples again in r3 (2026-11-19).
 - **Output** (`src/llm/schema.py`): Ollama structured output (JSON schema), validated with
   pydantic. Fields in order: `evidence_span` (verbatim quote or null) → `goc_present`
   (`yes | no`, no `unclear`).
@@ -505,7 +506,7 @@ Decisions (user-approved 2026-10-29):
 
 ---
 
-## 5. Status and next steps (2026-11-17)
+## 5. Status and next steps (2026-11-19)
 
 **Labels (all in):**
 - dev 30/30 (5 members; 8 yes, 22 no, 0 unclear after the 2026-11-06 and 2026-11-11
@@ -597,13 +598,32 @@ side in [`reports/rounds_dev.md`](reports/rounds_dev.md).
   `data/prediction_runs/run2/`); the previous r0-only local files are in
   `data/predictions_backup_r0only/`.
 
-**▶ Resume here: choose the test-run configs, then freeze (user decision 2026-11-17).**
-- The user plans to stop dev tuning at r2. The group decides which config(s) go to the test run.
-- The prompts are **not** frozen yet: `src/llm/prompts/FROZEN` does not exist.
-- Name the `--pair`s for the combined McNemar before the test run.
+**Round r3 (registered 2026-11-19).** In r2, llama3.1 zero-shot rose (F1 0.84) but llama3.1
+few-shot fell back (0.80 → 0.67), so the user asked to test the r2 system prompt with the 4 r1
+few-shot examples instead of the 16 r2 examples.
+- `system.txt` and `user.txt` are unchanged from r2. `fewshot.jsonl` = the r1 file (2 yes, 2 no).
+  Its outputs are consistent with the r2 rules.
+- Hashes: zero-shot `98dca2eeac05` (**same as r2**), few-shot `152a46a1e633`.
+- Zero-shot is not rerun (user decision 2026-11-19). `run.py` resume skips it because predictions
+  with that hash already exist, so r3 zero-shot = r2 zero-shot, and r2's record stays untouched.
+  In `rounds_dev.md`, zero-shot r2 → r3 shows no change by construction.
+- `tests/test_llm_prompts.py` now expects 4 examples (2 yes, 2 no).
+
+**▶ Resume here: dev run of round r3.**
+1. On CARC: `git pull`, then `sbatch --account=xiangren_1987 slurm/run_llm.sbatch dev`. This is
+   the usual command for all 6 configs. Zero-shot prints "skipped 30", and only the 3 few-shot
+   configs run.
+2. Fill `carc_job` for r3 in `src/llm/prompt_rounds/rounds.json`, then copy the predictions back
+   into `data/predictions/`.
+3. `metrics --set dev` → `report_md --set dev` → hand-written summary (with "About F1 strict") →
+   `compare_rounds`. The key comparison is few-shot r2 → r3.
+4. Then: the group chooses the test-run config(s) and names the `--pair`s for the combined
+   McNemar. The prompts are **not** frozen yet: `src/llm/prompts/FROZEN` does not exist.
+   Freezing records whichever prompt files are current, so set `fewshot.jsonl` to the chosen
+   round's version first.
 
 **After that:**
-1. `--freeze` (records the r2 hashes), commit / push, `git pull` on CARC.
+1. `--freeze` (records the chosen round's hashes), commit / push, `git pull` on CARC.
 2. A single test run (test_a + test_b) of the chosen configs.
 3. `--set combined` with the pre-named `--pair`s.
 4. Stage 6, silver labeling: the full pool takes ≈ 2 days per config at ~2.5 s/note, so
