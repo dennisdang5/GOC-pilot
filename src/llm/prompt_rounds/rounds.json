@@ -26,5 +26,12 @@
     "carc_job": "14366175",
     "gpu": "A100",
     "changes": "r2 system/user prompt unchanged, with the 4 r1 few-shot examples instead of the 16 r2 examples (tests whether the 16 examples hurt few-shot). Zero-shot prompt is identical to r2 (same hash), so r2's zero-shot predictions are reused, not rerun."
+  },
+  "r4": {
+    "date": "2026-11-20",
+    "prompt_hash": {"zero_shot": "98dca2eeac05", "few_shot": "8ebbfeef5e57"},
+    "carc_job": "",
+    "gpu": "A100",
+    "changes": "r2 system/user prompt unchanged, with 5 new user-written synthetic few-shot examples (4 yes, 1 no; long palliative-style notes with [** **] placeholders) instead of the 4 r1 examples. num_ctx 16384 -> 32768 from r4 on, because the examples add ~12k tokens. Zero-shot prompt is identical to r2/r3 (same hash), so r2's zero-shot predictions are reused, not rerun."
   }
 }

@@ -26,3 +26,7 @@ __pycache__/
 
 # CARC job logs
 slurm/logs/
+
+# Draft few-shot sources (synthetic, kept local only: user decision 2026-11-20)
+src/llm/fewshot_drafts/*
+!src/llm/fewshot_drafts/.gitkeep

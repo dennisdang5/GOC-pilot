@@ -389,13 +389,15 @@ Decisions (user-approved 2026-10-28):
   - Both share `src/llm/prompts/system.txt` (definition + edge-case table) and `user.txt`.
   - Few-shot adds **synthetic** examples (`src/llm/fewshot.jsonl`) as prior user / assistant
     turns: 3 in r0, 4 in r1, **16** (6 yes, 10 no; written by the user) in r2 (2026-11-11),
-    and the 4 r1 examples again in r3 (2026-11-19).
+    the 4 r1 examples again in r3 (2026-11-19), and **5** new ones (4 yes, 1 no; written by the
+    user) in r4 (2026-11-20).
 - **Output** (`src/llm/schema.py`): Ollama structured output (JSON schema), validated with
   pydantic. Fields in order: `evidence_span` (verbatim quote or null) → `goc_present`
   (`yes | no`, no `unclear`).
-- **Decoding:** temperature 0, seed 20261028, `num_predict` 400, `num_ctx` **16384** on every
-  call. It was 12288 for r0 and r1. It was raised from r2 on (user decision 2026-11-11) because
-  the 16-example few-shot prompt would not fit 5 test notes at 12288.
+- **Decoding:** temperature 0, seed 20261028, `num_predict` 400, `num_ctx` **32768** on every
+  call. It was 12288 for r0 and r1, and 16384 for r2 and r3 (raised 2026-11-11, because the
+  16-example few-shot prompt would not fit 5 test notes at 12288). It was raised to 32768 from r4
+  on (user decision 2026-11-20), because the 5 r4 examples add ~12k tokens.
 - **Context:** whole notes, no chunking.
   - Before sending, the prompt length is estimated at 2.5 chars/token. A note that might not fit
     is not sent (error `truncated`).
@@ -404,6 +406,8 @@ Decisions (user-approved 2026-10-28):
     - zero-shot: dev 6.2k · test_a 8.7k · test_b 9.9k;
     - few-shot: dev 10.2k · test_a 12.7k · test_b 13.9k;
     - plus 400 output tokens, against a context of 16,384.
+  - With the r4 prompts (checked 2026-11-20): zero-shot unchanged; few-shot dev 18.4k ·
+    test_a 20.9k · test_b 22.1k, plus 400 output tokens, against 32,768. All notes fit.
 - **Transport:** `requests` → `localhost:11434/api/chat` (no `ollama` package).
 - **Hardware (user decision 2026-10-28):** all runs on **CARC Discovery, `gpu` partition, A100**
   (`slurm/run_llm.sbatch`), using Ollama 0.40.12 with model IDs pinned in `slurm/models.txt`.
@@ -514,7 +518,7 @@ Decisions (user-approved 2026-10-29):
 
 ---
 
-## 5. Status and next steps (2026-11-19, r3 scored)
+## 5. Status and next steps (2026-11-20, r4 registered)
 
 **Labels (all in):**
 - dev 30/30 (5 members; 8 yes, 22 no, 0 unclear after the 2026-11-06 and 2026-11-11
@@ -637,12 +641,24 @@ hand-written summary in [`reports/rounds/dev_r3/results.md`](reports/rounds/dev_
 recall (§3.6, §4.5). `reports/rounds_dev.md` was regenerated; the r0–r3 results.md files were
 left as they were.
 
-**▶ Resume here: the group chooses the test config(s); then freeze.**
+**Round r4 (registered 2026-11-20, not run yet).** The r2 system / user prompt is unchanged, with
+5 new user-written synthetic few-shot examples instead of the 4 r1 ones.
+- The examples are long, palliative-style notes (4 yes, 1 no). The user's drafts are in
+  `src/llm/fewshot_drafts/`, gitignored at the user's request (they are never pushed). They were
+  converted to our format by a one-off script: sections joined into one note, metadata dropped.
+  Every name, the pager number and the hospital / place names were replaced with MIMIC-style
+  `[** **]` placeholders (user decision). The user approved the 4 evidence spans.
+- Hashes: zero-shot `98dca2eeac05` (**same as r2 / r3**, not rerun), few-shot `8ebbfeef5e57`.
+- `num_ctx` 16384 → 32768 (§4.4), so r4 changes two things at once (examples + context size).
+- `tests/test_llm_prompts.py` now expects 5 examples (4 yes, 1 no).
+- Next: commit / push, `git pull` + few-shot dev run on CARC, then fill `carc_job` and score.
+
+**▶ Resume here: run r4 on dev; then the group chooses the test config(s) and freezes.**
 1. The group chooses the test-run config(s) and names the `--pair`s for the combined McNemar.
    The prompts are **not** frozen yet: `src/llm/prompts/FROZEN` does not exist.
 2. Freezing records whichever prompt files are current, so set `fewshot.jsonl` to the chosen
-   round's version first. It is currently r3's (4 examples). The zero-shot prompt is the same in
-   r2 and r3.
+   round's version first. It is currently r4's (5 examples). The zero-shot prompt is the same in
+   r2, r3 and r4. `num_ctx` is now 32768; an earlier round's examples run fine at that size.
 
 **After that:**
 1. `--freeze` (records the chosen round's hashes), commit / push, `git pull` on CARC.

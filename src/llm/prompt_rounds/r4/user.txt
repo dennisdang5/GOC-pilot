@@ -1,0 +1,6 @@
+Clinical note:
+<<<
+{note}
+>>>
+
+Does this note document a goals-of-care conversation? Reply with JSON only.
