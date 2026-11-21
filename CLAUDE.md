@@ -518,7 +518,7 @@ Decisions (user-approved 2026-10-29):
 
 ---
 
-## 5. Status and next steps (2026-11-20, r4 registered)
+## 5. Status and next steps (2026-11-20, r4 running on CARC)
 
 **Labels (all in):**
 - dev 30/30 (5 members; 8 yes, 22 no, 0 unclear after the 2026-11-06 and 2026-11-11
@@ -641,7 +641,8 @@ hand-written summary in [`reports/rounds/dev_r3/results.md`](reports/rounds/dev_
 recall (§3.6, §4.5). `reports/rounds_dev.md` was regenerated; the r0–r3 results.md files were
 left as they were.
 
-**Round r4 (registered 2026-11-20, not run yet).** The r2 system / user prompt is unchanged, with
+**Round r4 (registered 2026-11-20; CARC job 14429508 submitted, not scored yet).** The r2 / r3
+system / user prompt is unchanged (verified identical to the r3 snapshot), with
 5 new user-written synthetic few-shot examples instead of the 4 r1 ones.
 - The examples are long, palliative-style notes (4 yes, 1 no). The user's drafts are in
   `src/llm/fewshot_drafts/`, gitignored at the user's request (they are never pushed). They were
@@ -651,9 +652,22 @@ left as they were.
 - Hashes: zero-shot `98dca2eeac05` (**same as r2 / r3**, not rerun), few-shot `8ebbfeef5e57`.
 - `num_ctx` 16384 → 32768 (§4.4), so r4 changes two things at once (examples + context size).
 - `tests/test_llm_prompts.py` now expects 5 examples (4 yes, 1 no).
-- Next: commit / push, `git pull` + few-shot dev run on CARC, then fill `carc_job` and score.
+- Done: committed and pushed (`9db1277`); `git pull` + `sbatch slurm/run_llm.sbatch dev` on
+  CARC as **job 14429508** (A100). Zero-shot is skipped by resume (hash already has
+  predictions); only the 3 few-shot configs run. `carc_job` is filled in `rounds.json`
+  (uncommitted; commit it with the r4 scoring).
+- Runtime not measured yet. Each few-shot call sends ~12k more prompt tokens than r3, so record
+  the job's elapsed time (`sacct -j 14429508`) for the Stage 6 cost estimate.
 
-**▶ Resume here: run r4 on dev; then the group chooses the test config(s) and freezes.**
+**▶ Resume here: score r4.**
+1. When job 14429508 finishes, copy the few-shot dev predictions from CARC into
+   `data/prediction_runs/run4/`, then into `data/predictions/`.
+2. `python -m src.eval.metrics --set dev` (defaults to the current round, r4) →
+   `python -m src.eval.report_md --set dev --round r4` → hand-written summary in
+   `reports/rounds/dev_r4/results.md` → `python -m src.eval.compare_rounds`.
+3. Commit the r4 results together with the `carc_job` entry; update this section.
+
+**Then: the group chooses the test config(s) and freezes.**
 1. The group chooses the test-run config(s) and names the `--pair`s for the combined McNemar.
    The prompts are **not** frozen yet: `src/llm/prompts/FROZEN` does not exist.
 2. Freezing records whichever prompt files are current, so set `fewshot.jsonl` to the chosen
