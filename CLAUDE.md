@@ -8,8 +8,8 @@ tune prompts on dev, score the frozen prompts once on test, and then use the bes
 
 **Where things stand:** data prep, sampling, labeling, the LLM pipeline and evaluation are all
 built. Dev is being tuned in **rounds** (one prompt version each, all kept): see
-[`reports/rounds_dev.md`](reports/rounds_dev.md). Rounds r0–r3 are scored. The next step is the
-group's choice of test configs and `--pair`s, then `--freeze` (§5).
+[`reports/rounds_dev.md`](reports/rounds_dev.md). Rounds r0–r4 are scored. The next step is the
+group's choice of test configs, few-shot file, `num_ctx` and `--pair`s, then `--freeze` (§5).
 
 ---
 
@@ -518,7 +518,7 @@ Decisions (user-approved 2026-10-29):
 
 ---
 
-## 5. Status and next steps (2026-11-20, r4 running on CARC)
+## 5. Status and next steps (2026-11-23, r4 scored)
 
 **Labels (all in):**
 - dev 30/30 (5 members; 8 yes, 22 no, 0 unclear after the 2026-11-06 and 2026-11-11
@@ -641,7 +641,7 @@ hand-written summary in [`reports/rounds/dev_r3/results.md`](reports/rounds/dev_
 recall (§3.6, §4.5). `reports/rounds_dev.md` was regenerated; the r0–r3 results.md files were
 left as they were.
 
-**Round r4 (registered 2026-11-20; CARC job 14429508 submitted, not scored yet).** The r2 / r3
+**Round r4 (registered 2026-11-20; CARC job 14429508).** The r2 / r3
 system / user prompt is unchanged (verified identical to the r3 snapshot), with
 5 new user-written synthetic few-shot examples instead of the 4 r1 ones.
 - The examples are long, palliative-style notes (4 yes, 1 no). The user's drafts are in
@@ -652,27 +652,44 @@ system / user prompt is unchanged (verified identical to the r3 snapshot), with
 - Hashes: zero-shot `98dca2eeac05` (**same as r2 / r3**, not rerun), few-shot `8ebbfeef5e57`.
 - `num_ctx` 16384 → 32768 (§4.4), so r4 changes two things at once (examples + context size).
 - `tests/test_llm_prompts.py` now expects 5 examples (4 yes, 1 no).
-- Done: committed and pushed (`9db1277`); `git pull` + `sbatch slurm/run_llm.sbatch dev` on
-  CARC as **job 14429508** (A100). Zero-shot is skipped by resume (hash already has
-  predictions); only the 3 few-shot configs run. `carc_job` is filled in `rounds.json`
-  (uncommitted; commit it with the r4 scoring).
-- Runtime not measured yet. Each few-shot call sends ~12k more prompt tokens than r3, so record
-  the job's elapsed time (`sacct -j 14429508`) for the Stage 6 cost estimate.
+- Committed and pushed (`9db1277`, `carc_job` in `5126783`); run on CARC as **job 14429508**
+  (A100). Zero-shot was skipped by resume (its hash already had predictions); only the 3
+  few-shot configs ran.
 
-**▶ Resume here: score r4.**
-1. When job 14429508 finishes, copy the few-shot dev predictions from CARC into
-   `data/prediction_runs/run4/`, then into `data/predictions/`.
-2. `python -m src.eval.metrics --set dev` (defaults to the current round, r4) →
-   `python -m src.eval.report_md --set dev --round r4` → hand-written summary in
-   `reports/rounds/dev_r4/results.md` → `python -m src.eval.compare_rounds`.
-3. Commit the r4 results together with the `carc_job` entry; update this section.
+**Dev results, round r4 (CARC job 14429508, A100, scored 2026-11-23).** Few-shot 90/90 calls ok
+(gemma3's `truncated` on ROW_ID 561002 did not recur at 32768); zero-shot skipped as planned.
+Details and hand-written summary in [`reports/rounds/dev_r4/results.md`](reports/rounds/dev_r4/results.md).
+- **llama3.1 few-shot answered `no`, with no quote, on all 30 notes** (0/8 positives; r3 6/8,
+  F1 0.75 → NA). Checked on aggregates: no errors or cut-offs, prompts 10.4k–14.0k tokens
+  (inside 32768), shorter replies (median latency 1.9 s → 1.3 s). qwen3 / gemma3 answered
+  normally on the same prompts, and the last example is a `yes`. The cause is unknown; examples
+  and `num_ctx` changed together, so they cannot be separated.
+- qwen3 few-shot: 3 new misses, FP unchanged at 8 (1 fixed, 1 new): sens 1.00 → 0.62, F1
+  0.67 → 0.48. gemma3 few-shot: still yes on 29/30 (F1 0.43).
+- No r3 → r4 step is significant (all Holm p = 1.0). Even the llama3.1 collapse is 6 vs 2 notes
+  (p = 0.29): with 8 positives, McNemar has little power on dev.
+- llama3.1 zero-shot still leads (F1 0.84, unchanged since r2). It is formally tied with the
+  qwen3 configs (Holm p = 0.086).
+- Runtime: summed model latency per few-shot config was 1.1–2.7 min for 30 notes. The job's
+  total elapsed time (`sacct -j 14429508`, includes model loading) was not recorded.
+- Predictions: the full CARC files (r0–r4; few-shot 150 lines, zero-shot 90) are in
+  `data/prediction_runs/run4/` and copied to `data/predictions/` on this Mac. The old local
+  r0–r2 lines were checked to be an unchanged prefix of the new files. The r4 raw replies were
+  not downloaded (the `raw/` copy holds r3's only); they are on CARC and not used by eval.
 
-**Then: the group chooses the test config(s) and freezes.**
+**▶ Resume here: the group chooses the test config(s) and freezes.**
 1. The group chooses the test-run config(s) and names the `--pair`s for the combined McNemar.
-   The prompts are **not** frozen yet: `src/llm/prompts/FROZEN` does not exist.
+   The prompts are **not** frozen yet: `src/llm/prompts/FROZEN` does not exist. On dev,
+   llama3.1 zero-shot leads; the r4 few-shot examples are the weakest set so far for the 8b
+   models.
 2. Freezing records whichever prompt files are current, so set `fewshot.jsonl` to the chosen
    round's version first. It is currently r4's (5 examples). The zero-shot prompt is the same in
-   r2, r3 and r4. `num_ctx` is now 32768; an earlier round's examples run fine at that size.
+   r2, r3 and r4.
+3. **Decide `num_ctx` before freezing.** The code uses 32768, but every zero-shot dev
+   prediction since r2, and the r3 few-shot predictions, ran at 16384. All test notes fit at
+   16384 with the r2 / r3 prompts (§4.4), so 16384 matches what was scored on dev. 32768 is
+   needed only with the r4 examples. `num_ctx` is not part of the prompt hash, so the `FROZEN`
+   check would not catch a mismatch.
 
 **After that:**
 1. `--freeze` (records the chosen round's hashes), commit / push, `git pull` on CARC.

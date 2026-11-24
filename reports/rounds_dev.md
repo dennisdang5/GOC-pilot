@@ -10,10 +10,11 @@ Each round is one version of the prompts run on the 30 dev notes. All rounds are
 | **r1** | 2026-11-09 | 13933520 (A100) | `84e5a005cefb` | `eea596c7e013` | From dev triage (CMO status lines; planned meeting + family update): CMO / comfort orders join the code-status rule; planned meeting with a family update -> no, real conversation + follow-up -> yes; must find the sentence describing the conversation, and evidence_span must be that sentence; 4th few-shot example (hard no: CMO + update + planned meeting). |
 | **r2** | 2026-11-11 | 14030227 (A100) | `98dca2eeac05` | `70187780106a` | User-written system prompt: two tests, (A) a conversation with the patient/family/HCP already happened, or they made an overall-direction decision (CMO, withdrawal, hospice, stop chemo), and (B) it has content (goals, values, prognosis shared, or a treatment preference/decision); 9 always-no patterns (code status, empty templates, planned talks, updates, team plans/consults, content-free meetings, medical management, comfort orders, stated preferences + referral), 3 yes patterns, a 4-step procedure; evidence_span must pass A and B. Few-shot: 16 synthetic examples (6 yes, 10 no), replacing the 4. num_ctx 12288 -> 16384 from r2 on, so every test note fits under few-shot. |
 | **r3** | 2026-11-19 | 14366175 (A100) | `98dca2eeac05` | `152a46a1e633` | r2 system/user prompt unchanged, with the 4 r1 few-shot examples instead of the 16 r2 examples (tests whether the 16 examples hurt few-shot). Zero-shot prompt is identical to r2 (same hash), so r2's zero-shot predictions are reused, not rerun. |
+| **r4** | 2026-11-20 | 14429508 (A100) | `98dca2eeac05` | `8ebbfeef5e57` | r2 system/user prompt unchanged, with 5 new user-written synthetic few-shot examples (4 yes, 1 no; long palliative-style notes with [** **] placeholders) instead of the 4 r1 examples. num_ctx 16384 -> 32768 from r4 on, because the examples add ~12k tokens. Zero-shot prompt is identical to r2/r3 (same hash), so r2's zero-shot predictions are reused, not rerun. |
 
 ## Results by round (primary rule)
 
-Proportions show the estimate and its 95% Wilson CI. Configs are sorted by F1 in the newest round (r3).
+Proportions show the estimate and its 95% Wilson CI. Configs are sorted by F1 in the newest round (r4).
 
 - **quotes verified (yes)**: each `yes` answer comes with a quote from the note as evidence. This counts how many of those quotes were found in the note word for word (verified / given). It covers all `yes` answers, right or wrong.
 - **grounded recall**: of the gold-`yes` notes, the share the model called `yes` with a verified quote. A bad quote can only lower it.
@@ -24,26 +25,32 @@ Proportions show the estimate and its 95% Wilson CI. Configs are sorted by F1 in
 | `llama3.1-8b_zero_shot` | r1 | 7 / 5 / 1 / 17 | 0.88 (0.53-0.98) | 0.58 (0.32-0.81) | 0.77 (0.57-0.90) | 0.70 | 0.50 (0.22-0.78) | 7 / 12 |
 | `llama3.1-8b_zero_shot` | r2 | 8 / 3 / 0 / 19 | 1.00 (0.68-1.00) | 0.73 (0.43-0.90) | 0.86 (0.67-0.95) | 0.84 | 0.75 (0.41-0.93) | 8 / 11 |
 | `llama3.1-8b_zero_shot` | r3 | 8 / 3 / 0 / 19 | 1.00 (0.68-1.00) | 0.73 (0.43-0.90) | 0.86 (0.67-0.95) | 0.84 | 0.75 (0.41-0.93) | 8 / 11 |
-| `llama3.1-8b_few_shot` | r0 | 6 / 4 / 2 / 18 | 0.75 (0.41-0.93) | 0.60 (0.31-0.83) | 0.82 (0.61-0.93) | 0.67 | 0.50 (0.22-0.78) | 8 / 10 |
-| `llama3.1-8b_few_shot` | r1 | 6 / 1 / 2 / 21 | 0.75 (0.41-0.93) | 0.86 (0.49-0.97) | 0.95 (0.78-0.99) | 0.80 | 0.50 (0.22-0.78) | 5 / 7 |
-| `llama3.1-8b_few_shot` | r2 | 6 / 4 / 2 / 18 | 0.75 (0.41-0.93) | 0.60 (0.31-0.83) | 0.82 (0.61-0.93) | 0.67 | 0.50 (0.22-0.78) | 7 / 10 |
-| `llama3.1-8b_few_shot` | r3 | 6 / 2 / 2 / 20 | 0.75 (0.41-0.93) | 0.75 (0.41-0.93) | 0.91 (0.72-0.97) | 0.75 | 0.62 (0.31-0.86) | 6 / 8 |
-| `qwen3-8b_few_shot` | r0 | 8 / 9 / 0 / 13 | 1.00 (0.68-1.00) | 0.47 (0.26-0.69) | 0.59 (0.39-0.77) | 0.64 | 0.75 (0.41-0.93) | 15 / 17 |
-| `qwen3-8b_few_shot` | r1 | 8 / 8 / 0 / 14 | 1.00 (0.68-1.00) | 0.50 (0.28-0.72) | 0.64 (0.43-0.80) | 0.67 | 0.75 (0.41-0.93) | 14 / 16 |
-| `qwen3-8b_few_shot` | r2 | 8 / 8 / 0 / 14 | 1.00 (0.68-1.00) | 0.50 (0.28-0.72) | 0.64 (0.43-0.80) | 0.67 | 0.75 (0.41-0.93) | 13 / 16 |
-| `qwen3-8b_few_shot` | r3 | 8 / 8 / 0 / 14 | 1.00 (0.68-1.00) | 0.50 (0.28-0.72) | 0.64 (0.43-0.80) | 0.67 | 0.50 (0.22-0.78) | 12 / 16 |
+| `llama3.1-8b_zero_shot` | r4 | 8 / 3 / 0 / 19 | 1.00 (0.68-1.00) | 0.73 (0.43-0.90) | 0.86 (0.67-0.95) | 0.84 | 0.75 (0.41-0.93) | 8 / 11 |
 | `qwen3-8b_zero_shot` | r0 | 8 / 12 / 0 / 10 | 1.00 (0.68-1.00) | 0.40 (0.22-0.61) | 0.45 (0.27-0.65) | 0.57 | 0.75 (0.41-0.93) | 17 / 20 |
 | `qwen3-8b_zero_shot` | r1 | 8 / 12 / 0 / 10 | 1.00 (0.68-1.00) | 0.40 (0.22-0.61) | 0.45 (0.27-0.65) | 0.57 | 0.75 (0.41-0.93) | 18 / 20 |
 | `qwen3-8b_zero_shot` | r2 | 8 / 11 / 0 / 11 | 1.00 (0.68-1.00) | 0.42 (0.23-0.64) | 0.50 (0.31-0.69) | 0.59 | 0.62 (0.31-0.86) | 14 / 19 |
 | `qwen3-8b_zero_shot` | r3 | 8 / 11 / 0 / 11 | 1.00 (0.68-1.00) | 0.42 (0.23-0.64) | 0.50 (0.31-0.69) | 0.59 | 0.62 (0.31-0.86) | 14 / 19 |
+| `qwen3-8b_zero_shot` | r4 | 8 / 11 / 0 / 11 | 1.00 (0.68-1.00) | 0.42 (0.23-0.64) | 0.50 (0.31-0.69) | 0.59 | 0.62 (0.31-0.86) | 14 / 19 |
+| `qwen3-8b_few_shot` | r0 | 8 / 9 / 0 / 13 | 1.00 (0.68-1.00) | 0.47 (0.26-0.69) | 0.59 (0.39-0.77) | 0.64 | 0.75 (0.41-0.93) | 15 / 17 |
+| `qwen3-8b_few_shot` | r1 | 8 / 8 / 0 / 14 | 1.00 (0.68-1.00) | 0.50 (0.28-0.72) | 0.64 (0.43-0.80) | 0.67 | 0.75 (0.41-0.93) | 14 / 16 |
+| `qwen3-8b_few_shot` | r2 | 8 / 8 / 0 / 14 | 1.00 (0.68-1.00) | 0.50 (0.28-0.72) | 0.64 (0.43-0.80) | 0.67 | 0.75 (0.41-0.93) | 13 / 16 |
+| `qwen3-8b_few_shot` | r3 | 8 / 8 / 0 / 14 | 1.00 (0.68-1.00) | 0.50 (0.28-0.72) | 0.64 (0.43-0.80) | 0.67 | 0.50 (0.22-0.78) | 12 / 16 |
+| `qwen3-8b_few_shot` | r4 | 5 / 8 / 3 / 14 | 0.62 (0.31-0.86) | 0.38 (0.18-0.64) | 0.64 (0.43-0.80) | 0.48 | 0.50 (0.22-0.78) | 12 / 13 |
 | `gemma3-4b_few_shot` | r0 | 8 / 22 / 0 / 0 | 1.00 (0.68-1.00) | 0.27 (0.14-0.44) | 0.00 (0.00-0.15) | 0.42 | 0.62 (0.31-0.86) | 10 / 30 |
 | `gemma3-4b_few_shot` | r1 | 8 / 22 / 0 / 0 | 1.00 (0.68-1.00) | 0.27 (0.14-0.44) | 0.00 (0.00-0.15) | 0.42 | 0.50 (0.22-0.78) | 10 / 30 |
 | `gemma3-4b_few_shot` | r2 | 7 / 10 / 1 / 12 | 0.88 (0.53-0.98) | 0.41 (0.22-0.64) | 0.55 (0.35-0.73) | 0.56 | 0.75 (0.41-0.93) | 12 / 15 |
 | `gemma3-4b_few_shot` | r3 | 8 / 20 / 0 / 2 | 1.00 (0.68-1.00) | 0.29 (0.15-0.47) | 0.09 (0.03-0.28) | 0.44 | 0.62 (0.31-0.86) | 7 / 28 |
+| `gemma3-4b_few_shot` | r4 | 8 / 21 / 0 / 1 | 1.00 (0.68-1.00) | 0.28 (0.15-0.46) | 0.05 (0.01-0.22) | 0.43 | 0.50 (0.22-0.78) | 11 / 29 |
 | `gemma3-4b_zero_shot` | r0 | 8 / 21 / 0 / 1 | 1.00 (0.68-1.00) | 0.28 (0.15-0.46) | 0.05 (0.01-0.22) | 0.43 | 0.50 (0.22-0.78) | 19 / 29 |
 | `gemma3-4b_zero_shot` | r1 | 8 / 22 / 0 / 0 | 1.00 (0.68-1.00) | 0.27 (0.14-0.44) | 0.00 (0.00-0.15) | 0.42 | 0.75 (0.41-0.93) | 24 / 30 |
 | `gemma3-4b_zero_shot` | r2 | 8 / 21 / 0 / 1 | 1.00 (0.68-1.00) | 0.28 (0.15-0.46) | 0.05 (0.01-0.22) | 0.43 | 0.62 (0.31-0.86) | 15 / 29 |
 | `gemma3-4b_zero_shot` | r3 | 8 / 21 / 0 / 1 | 1.00 (0.68-1.00) | 0.28 (0.15-0.46) | 0.05 (0.01-0.22) | 0.43 | 0.62 (0.31-0.86) | 15 / 29 |
+| `gemma3-4b_zero_shot` | r4 | 8 / 21 / 0 / 1 | 1.00 (0.68-1.00) | 0.28 (0.15-0.46) | 0.05 (0.01-0.22) | 0.43 | 0.62 (0.31-0.86) | 15 / 29 |
+| `llama3.1-8b_few_shot` | r0 | 6 / 4 / 2 / 18 | 0.75 (0.41-0.93) | 0.60 (0.31-0.83) | 0.82 (0.61-0.93) | 0.67 | 0.50 (0.22-0.78) | 8 / 10 |
+| `llama3.1-8b_few_shot` | r1 | 6 / 1 / 2 / 21 | 0.75 (0.41-0.93) | 0.86 (0.49-0.97) | 0.95 (0.78-0.99) | 0.80 | 0.50 (0.22-0.78) | 5 / 7 |
+| `llama3.1-8b_few_shot` | r2 | 6 / 4 / 2 / 18 | 0.75 (0.41-0.93) | 0.60 (0.31-0.83) | 0.82 (0.61-0.93) | 0.67 | 0.50 (0.22-0.78) | 7 / 10 |
+| `llama3.1-8b_few_shot` | r3 | 6 / 2 / 2 / 20 | 0.75 (0.41-0.93) | 0.75 (0.41-0.93) | 0.91 (0.72-0.97) | 0.75 | 0.62 (0.31-0.86) | 6 / 8 |
+| `llama3.1-8b_few_shot` | r4 | 0 / 0 / 8 / 22 | 0.00 (0.00-0.32) | NA | 1.00 (0.85-1.00) | NA | 0.00 (0.00-0.32) | 0 / 0 |
 
 ## Change from the previous round
 
@@ -54,21 +61,27 @@ Point-estimate differences (new minus previous); `F1 vs r0` compares with the fi
 | `llama3.1-8b_zero_shot` | r0 → r1 | -3 | +0 | 0.00 | +0.12 | +0.14 | +0.09 | +0.09 |
 | `llama3.1-8b_zero_shot` | r1 → r2 | -2 | -1 | +0.12 | +0.14 | +0.09 | +0.14 | +0.23 |
 | `llama3.1-8b_zero_shot` | r2 → r3 | +0 | +0 | 0.00 | 0.00 | 0.00 | 0.00 | +0.23 |
-| `llama3.1-8b_few_shot` | r0 → r1 | -3 | +0 | 0.00 | +0.26 | +0.14 | +0.13 | +0.13 |
-| `llama3.1-8b_few_shot` | r1 → r2 | +3 | +0 | 0.00 | -0.26 | -0.14 | -0.13 | 0.00 |
-| `llama3.1-8b_few_shot` | r2 → r3 | -2 | +0 | 0.00 | +0.15 | +0.09 | +0.08 | +0.08 |
-| `qwen3-8b_few_shot` | r0 → r1 | -1 | +0 | 0.00 | +0.03 | +0.05 | +0.03 | +0.03 |
-| `qwen3-8b_few_shot` | r1 → r2 | +0 | +0 | 0.00 | 0.00 | 0.00 | 0.00 | +0.03 |
-| `qwen3-8b_few_shot` | r2 → r3 | +0 | +0 | 0.00 | 0.00 | 0.00 | 0.00 | +0.03 |
+| `llama3.1-8b_zero_shot` | r3 → r4 | +0 | +0 | 0.00 | 0.00 | 0.00 | 0.00 | +0.23 |
 | `qwen3-8b_zero_shot` | r0 → r1 | +0 | +0 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
 | `qwen3-8b_zero_shot` | r1 → r2 | -1 | +0 | 0.00 | +0.02 | +0.05 | +0.02 | +0.02 |
 | `qwen3-8b_zero_shot` | r2 → r3 | +0 | +0 | 0.00 | 0.00 | 0.00 | 0.00 | +0.02 |
+| `qwen3-8b_zero_shot` | r3 → r4 | +0 | +0 | 0.00 | 0.00 | 0.00 | 0.00 | +0.02 |
+| `qwen3-8b_few_shot` | r0 → r1 | -1 | +0 | 0.00 | +0.03 | +0.05 | +0.03 | +0.03 |
+| `qwen3-8b_few_shot` | r1 → r2 | +0 | +0 | 0.00 | 0.00 | 0.00 | 0.00 | +0.03 |
+| `qwen3-8b_few_shot` | r2 → r3 | +0 | +0 | 0.00 | 0.00 | 0.00 | 0.00 | +0.03 |
+| `qwen3-8b_few_shot` | r3 → r4 | +0 | +3 | -0.38 | -0.12 | 0.00 | -0.19 | -0.16 |
 | `gemma3-4b_few_shot` | r0 → r1 | +0 | +0 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
 | `gemma3-4b_few_shot` | r1 → r2 | -12 | +1 | -0.12 | +0.15 | +0.55 | +0.14 | +0.14 |
 | `gemma3-4b_few_shot` | r2 → r3 | +10 | -1 | +0.12 | -0.13 | -0.45 | -0.12 | +0.02 |
+| `gemma3-4b_few_shot` | r3 → r4 | +1 | +0 | 0.00 | -0.01 | -0.05 | -0.01 | +0.01 |
 | `gemma3-4b_zero_shot` | r0 → r1 | +1 | +0 | 0.00 | -0.01 | -0.05 | -0.01 | -0.01 |
 | `gemma3-4b_zero_shot` | r1 → r2 | -1 | +0 | 0.00 | +0.01 | +0.05 | +0.01 | 0.00 |
 | `gemma3-4b_zero_shot` | r2 → r3 | +0 | +0 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
+| `gemma3-4b_zero_shot` | r3 → r4 | +0 | +0 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
+| `llama3.1-8b_few_shot` | r0 → r1 | -3 | +0 | 0.00 | +0.26 | +0.14 | +0.13 | +0.13 |
+| `llama3.1-8b_few_shot` | r1 → r2 | +3 | +0 | 0.00 | -0.26 | -0.14 | -0.13 | 0.00 |
+| `llama3.1-8b_few_shot` | r2 → r3 | -2 | +0 | 0.00 | +0.15 | +0.09 | +0.08 | +0.08 |
+| `llama3.1-8b_few_shot` | r3 → r4 | -2 | +6 | -0.75 | NA | +0.09 | NA | NA |
 
 ## Did each step help? (exact McNemar, Holm across configs within each step)
 
@@ -101,6 +114,12 @@ How the test works, in plain terms:
 | `llama3.1-8b_zero_shot` | r2 → r3 | 0 | 0 | 1.000 | 1.000 | comparable |
 | `qwen3-8b_few_shot` | r2 → r3 | 0 | 0 | 1.000 | 1.000 | comparable |
 | `qwen3-8b_zero_shot` | r2 → r3 | 0 | 0 | 1.000 | 1.000 | comparable |
+| `gemma3-4b_few_shot` | r3 → r4 | 2 | 1 | 1.000 | 1.000 | comparable |
+| `gemma3-4b_zero_shot` | r3 → r4 | 0 | 0 | 1.000 | 1.000 | comparable |
+| `llama3.1-8b_few_shot` | r3 → r4 | 6 | 2 | 0.289 | 1.000 | comparable |
+| `llama3.1-8b_zero_shot` | r3 → r4 | 0 | 0 | 1.000 | 1.000 | comparable |
+| `qwen3-8b_few_shot` | r3 → r4 | 4 | 1 | 0.375 | 1.000 | comparable |
+| `qwen3-8b_zero_shot` | r3 → r4 | 0 | 0 | 1.000 | 1.000 | comparable |
 
 ## How to read this
 
