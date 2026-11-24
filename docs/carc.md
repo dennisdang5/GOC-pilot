@@ -42,8 +42,16 @@ squeue -u $USER
 cat slurm/logs/goc-llm-<jobid>.out    # counts, latency, error types, ROW_IDs only
 ```
 
-- Same as the local `run.py`: test sets are refused until `src/llm/prompts/FROZEN` exists, and
-  resubmitting resumes.
+- Optional 2nd / 3rd arguments limit the models and strategies (space-separated, quoted when
+  more than one). The single test run uses only the frozen config:
+
+  ```bash
+  sbatch --account=<project_id> slurm/run_llm.sbatch test_a llama3.1:8b zero_shot
+  sbatch --account=<project_id> slurm/run_llm.sbatch test_b llama3.1:8b zero_shot
+  ```
+
+- Same as the local `run.py`: test sets are refused unless `src/llm/prompts/FROZEN` holds the
+  strategy's current prompt hash (only `zero_shot` is frozen), and resubmitting resumes.
 - After changing prompts, `git pull` on CARC before submitting.
 - Pass `--gres=gpu:a40:1` to use an A40, but use one GPU type for every set.
 

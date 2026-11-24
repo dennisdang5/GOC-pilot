@@ -7,9 +7,11 @@
 #SBATCH --time=02:00:00
 #SBATCH --output=slurm/logs/%x-%j.out
 #
-# All 3 models x 2 strategies on one set, one after another, on one GPU.
+# Models x strategies on one set, one after another, on one GPU (default: all 3 x 2).
 # Submit from the repo root (after slurm/carc_setup.sh):
-#   sbatch --account=<project_id> slurm/run_llm.sbatch [dev|test_a|test_b]
+#   sbatch --account=<project_id> slurm/run_llm.sbatch [dev|test_a|test_b] [MODELS] [STRATEGIES]
+# MODELS / STRATEGIES are space-separated and quoted when more than one, e.g. the test run:
+#   sbatch --account=<project_id> slurm/run_llm.sbatch test_a llama3.1:8b zero_shot
 # Use the same GPU type for every set; to use an A40 instead, add --gres=gpu:a40:1.
 # Resumable: resubmitting skips ROW_IDs that already have an error-free prediction made with the
 # current prompts; after a prompt change every note is rerun (see src/llm/rounds.py).
@@ -17,13 +19,15 @@ set -uo pipefail
 cd "$SLURM_SUBMIT_DIR"
 
 SET="${1:-dev}"
+MODELS="${2:-llama3.1:8b qwen3:8b gemma3:4b}"
+STRATEGIES="${3:-zero_shot few_shot}"
 OLLAMA_VERSION=0.40.12
 OLLAMA="$HOME/.local/ollama-$OLLAMA_VERSION/bin/ollama"
 export OLLAMA_MODELS="/scratch1/$USER/ollama-models"
 export OLLAMA_HOST="127.0.0.1:$((20000 + SLURM_JOB_ID % 10000))"  # avoid clashes on shared nodes
 export OLLAMA_NUM_PARALLEL=1 OLLAMA_MAX_LOADED_MODELS=1
 
-echo "job $SLURM_JOB_ID on $(hostname), set=$SET"
+echo "job $SLURM_JOB_ID on $(hostname), set=$SET, models=[$MODELS], strategies=[$STRATEGIES]"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader
 
 "$OLLAMA" serve > "slurm/logs/ollama-$SLURM_JOB_ID.log" 2>&1 &
@@ -40,8 +44,8 @@ while read -r tag id; do
 done < slurm/models.txt
 
 status=0
-for model in llama3.1:8b qwen3:8b gemma3:4b; do
-    for strategy in zero_shot few_shot; do
+for model in $MODELS; do
+    for strategy in $STRATEGIES; do
         .venv/bin/python -m src.llm.run --model "$model" --strategy "$strategy" --set "$SET" \
             --host "http://$OLLAMA_HOST" || status=1
     done

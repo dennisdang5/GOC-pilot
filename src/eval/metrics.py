@@ -48,7 +48,7 @@ from src.labeling.collect import read_labels
 from src.llm.notes import DERIVED, SAMPLES
 from src.llm.prompts import STRATEGIES
 from src.llm.rounds import current_round, load_rounds
-from src.llm.run import check_frozen
+from src.llm.run import FROZEN_PATH, check_frozen
 from src.llm.validate import PRED_DIR, read_predictions
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -113,6 +113,19 @@ def strategy_of(config: str) -> str:
         if config.endswith(f"_{s}"):
             return s
     raise ValueError(f"config {config} has no known strategy suffix")
+
+
+def check_test_frozen(set_name: str, pred_dir: Path = PRED_DIR,
+                      frozen_path: Path = FROZEN_PATH) -> None:
+    """Raise PermissionError unless every strategy with predictions on this test set is frozen.
+    Only strategies that were run are checked, so a freeze of one strategy is enough."""
+    for part in PARTS[set_name]:
+        suffix = f"_{part}"
+        found = {strategy_of(p.stem[: -len(suffix)]) for p in pred_dir.glob(f"*{suffix}.jsonl")}
+        if not found:
+            raise PermissionError(f"{part}: no prediction files")
+        for strategy in sorted(found):
+            check_frozen(part, strategy, frozen_path)
 
 
 def load_configs(part: str, pred_dir: Path = PRED_DIR,
@@ -360,9 +373,7 @@ def main() -> int:
         print("refused: --round / --rescore are for dev only (test sets are a single run)")
         return 1
     try:
-        for part in PARTS[args.set_name]:
-            for strategy in STRATEGIES:
-                check_frozen(part, strategy)
+        check_test_frozen(args.set_name)
     except PermissionError as e:
         print(f"refused: {e}")
         return 1

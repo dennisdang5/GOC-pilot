@@ -116,13 +116,16 @@ def test_freeze_guard(tmp_path):
     runmod.check_frozen("dev", "zero_shot", frozen)                    # dev always allowed
     with pytest.raises(PermissionError):
         runmod.check_frozen("test_a", "zero_shot", frozen)             # not frozen yet
-    runmod.freeze(frozen)
-    runmod.check_frozen("test_b", "few_shot", frozen)                  # frozen and unchanged
+    runmod.freeze(["zero_shot"], frozen)
+    runmod.check_frozen("test_b", "zero_shot", frozen)                 # frozen and unchanged
+    with pytest.raises(PermissionError):
+        runmod.check_frozen("test_a", "few_shot", frozen)              # strategy not frozen
     record = json.loads(frozen.read_text())
-    record["few_shot"] = "000000000000"                                # prompt edited later
+    assert set(record) == {"zero_shot", "frozen_at"}
+    record["zero_shot"] = "000000000000"                               # prompt edited later
     frozen.write_text(json.dumps(record))
     with pytest.raises(PermissionError):
-        runmod.check_frozen("test_b", "few_shot", frozen)
+        runmod.check_frozen("test_b", "zero_shot", frozen)
 
 
 def test_note_loader(tmp_path):

@@ -152,6 +152,21 @@ def test_round_selects_its_own_predictions(dev_setup):
         m.build_frame("dev", labels, preds, derived, {"zero_shot": "missing", "few_shot": "x"})
 
 
+def test_test_guard_checks_only_strategies_that_ran(tmp_path):
+    from src.llm import run as runmod
+    frozen, preds = tmp_path / "FROZEN", tmp_path / "pred"
+    write_preds(preds, "good_zero_shot_test_a", [pred(1, "yes", set_name="test_a")])
+    with pytest.raises(PermissionError):
+        m.check_test_frozen("test_a", preds, frozen)                   # nothing frozen yet
+    runmod.freeze(["zero_shot"], frozen)
+    m.check_test_frozen("test_a", preds, frozen)                       # zero-shot only: ok
+    with pytest.raises(PermissionError):
+        m.check_test_frozen("test_b", preds, frozen)                   # no test_b predictions
+    write_preds(preds, "good_few_shot_test_a", [pred(1, "yes", set_name="test_a")])
+    with pytest.raises(PermissionError):
+        m.check_test_frozen("test_a", preds, frozen)                   # few-shot not frozen
+
+
 def test_round_outputs_go_to_round_folder(tmp_path):
     assert m.output_paths("dev", "r1", tmp_path) == (
         tmp_path / "rounds" / "dev_r1" / "eval.json", tmp_path / "rounds" / "dev_r1", "errors_")

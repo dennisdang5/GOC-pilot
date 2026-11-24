@@ -8,8 +8,8 @@ tune prompts on dev, score the frozen prompts once on test, and then use the bes
 
 **Where things stand:** data prep, sampling, labeling, the LLM pipeline and evaluation are all
 built. Dev is being tuned in **rounds** (one prompt version each, all kept): see
-[`reports/rounds_dev.md`](reports/rounds_dev.md). Rounds r0–r4 are scored. The next step is the
-group's choice of test configs, few-shot file, `num_ctx` and `--pair`s, then `--freeze` (§5).
+[`reports/rounds_dev.md`](reports/rounds_dev.md). Rounds r0–r4 are scored, and dev tuning is
+over. **llama3.1 zero-shot** is the selected config, frozen for one test run (§3.6, §5).
 
 ---
 
@@ -235,6 +235,20 @@ order.
   primary F1 in all four dev rounds (r3: 0.67 vs 0.44). Strict PPV / specificity / F1 were
   dropped from reports. Grounded recall (= the old strict sensitivity) and the verified-quote
   counts remain. Decided on dev aggregates only, before the freeze and before any test scoring.
+- **2026-11-23, test config selected and frozen; `num_ctx` back to 16384.** After scoring r4,
+  the user chose **llama3.1:8b zero-shot** (prompt `98dca2eeac05`, identical in r2 / r3 / r4)
+  as the only config for the test sets.
+  - Basis: dev point estimates (F1 0.84, sens 1.00, PPV 0.73, spec 0.86). It is formally tied
+    with the qwen3 configs on dev (Holm p = 0.086), so this is a choice, not a proven winner.
+  - The test run is limited to this one config, so no `--pair`s are named and no model
+    comparison is claimed on test. The 2026-11-09 rule that gemma3:4b "stays in all runs and
+    results" now applies to dev only.
+  - `num_ctx` 32768 → 16384, so test runs at the setting every dev prediction of this prompt was
+    made with. The r4 few-shot predictions were made at 32768 and cannot be reproduced at 16384
+    (most r4 few-shot prompts would be refused as `truncated`).
+  - `FROZEN` records only the zero-shot hash (`--freeze zero_shot`). Few-shot is refused on test
+    sets. `fewshot.jsonl` stays at r4's version, unused on test.
+  - Decided on dev aggregates only; no test label or prediction had been opened.
 
 ---
 
@@ -394,10 +408,11 @@ Decisions (user-approved 2026-10-28):
 - **Output** (`src/llm/schema.py`): Ollama structured output (JSON schema), validated with
   pydantic. Fields in order: `evidence_span` (verbatim quote or null) → `goc_present`
   (`yes | no`, no `unclear`).
-- **Decoding:** temperature 0, seed 20261028, `num_predict` 400, `num_ctx` **32768** on every
+- **Decoding:** temperature 0, seed 20261028, `num_predict` 400, `num_ctx` **16384** on every
   call. It was 12288 for r0 and r1, and 16384 for r2 and r3 (raised 2026-11-11, because the
-  16-example few-shot prompt would not fit 5 test notes at 12288). It was raised to 32768 from r4
-  on (user decision 2026-11-20), because the 5 r4 examples add ~12k tokens.
+  16-example few-shot prompt would not fit 5 test notes at 12288). It was 32768 for r4 only
+  (2026-11-20, for the long r4 examples), then set back to 16384 for the test run (user decision
+  2026-11-23, §3.6).
 - **Context:** whole notes, no chunking.
   - Before sending, the prompt length is estimated at 2.5 chars/token. A note that might not fit
     is not sent (error `truncated`).
@@ -414,9 +429,13 @@ Decisions (user-approved 2026-10-28):
   - This followed hard power-offs on the local RTX 3070.
   - Use one GPU type for every set.
   - Partial local dev predictions are not mixed with CARC ones; dev was rerun from scratch there.
-- **Test-set guard:** `--set test_a | test_b` is refused unless `src/llm/prompts/FROZEN` exists
-  and its prompt hashes match. Create it with `python -m src.llm.run --freeze` only when dev
-  tuning is done. "combined" is assembled in eval, not run.
+- **Test-set guard:** `--set test_a | test_b` is refused unless `src/llm/prompts/FROZEN` holds
+  that strategy's current prompt hash. `python -m src.llm.run --freeze STRATEGY [...]` records
+  only the named strategies; a strategy left out is always refused. Frozen 2026-11-23 with
+  `--freeze zero_shot`. `metrics.py` applies the same check to every strategy that has
+  prediction files on the test set. "combined" is assembled in eval, not run.
+- `slurm/run_llm.sbatch SET [MODELS] [STRATEGIES]`: optional model / strategy lists (default all
+  3 × 2). The test run uses `llama3.1:8b zero_shot`.
 
 Files:
 - `src/llm/run.py --model M --strategy S --set dev [--limit N]` →
@@ -476,7 +495,8 @@ Decisions (user-approved 2026-10-29):
 - Exact McNemar on per-note correctness, Holm-adjusted (Holm corrects p-values for testing many
   pairs).
   - Dev: all pairs, exploratory.
-  - Test sets: only the pairs named with `--pair`, chosen before the test run.
+  - Test sets: only the pairs named with `--pair`, chosen before the test run. With the single
+    frozen config (2026-11-23) there are none.
 - Test sets are refused until `FROZEN` exists. A missing gold label or prediction stops the run.
 - A config whose latest predictions come from more than one prompt hash (e.g. an unfinished
   rerun) stops the run, listing the hashes and note counts (user decision 2026-11-09).
@@ -518,7 +538,7 @@ Decisions (user-approved 2026-10-29):
 
 ---
 
-## 5. Status and next steps (2026-11-23, r4 scored)
+## 5. Status and next steps (2026-11-23, frozen; test run next)
 
 **Labels (all in):**
 - dev 30/30 (5 members; 8 yes, 22 no, 0 unclear after the 2026-11-06 and 2026-11-11
@@ -677,26 +697,23 @@ Details and hand-written summary in [`reports/rounds/dev_r4/results.md`](reports
   r0–r2 lines were checked to be an unchanged prefix of the new files. The r4 raw replies were
   not downloaded (the `raw/` copy holds r3's only); they are on CARC and not used by eval.
 
-**▶ Resume here: the group chooses the test config(s) and freezes.**
-1. The group chooses the test-run config(s) and names the `--pair`s for the combined McNemar.
-   The prompts are **not** frozen yet: `src/llm/prompts/FROZEN` does not exist. On dev,
-   llama3.1 zero-shot leads; the r4 few-shot examples are the weakest set so far for the 8b
-   models.
-2. Freezing records whichever prompt files are current, so set `fewshot.jsonl` to the chosen
-   round's version first. It is currently r4's (5 examples). The zero-shot prompt is the same in
-   r2, r3 and r4.
-3. **Decide `num_ctx` before freezing.** The code uses 32768, but every zero-shot dev
-   prediction since r2, and the r3 few-shot predictions, ran at 16384. All test notes fit at
-   16384 with the r2 / r3 prompts (§4.4), so 16384 matches what was scored on dev. 32768 is
-   needed only with the r4 examples. `num_ctx` is not part of the prompt hash, so the `FROZEN`
-   check would not catch a mismatch.
+**Test config chosen and frozen (2026-11-23, §3.6).** llama3.1:8b zero-shot only, prompt
+`98dca2eeac05`, `num_ctx` 16384. `src/llm/prompts/FROZEN` holds only the zero-shot hash. No
+`--pair`s (single config).
 
-**After that:**
-1. `--freeze` (records the chosen round's hashes), commit / push, `git pull` on CARC.
-2. A single test run (test_a + test_b) of the chosen configs.
-3. `--set combined` with the pre-named `--pair`s.
-4. Stage 6, silver labeling: the full pool takes ≈ 2 days per config at ~2.5 s/note, so
-   subsample.
+**▶ Resume here: the single test run.**
+1. Commit / push the freeze, then `git pull` on CARC.
+2. On CARC:
+   `sbatch --account=xiangren_1987 slurm/run_llm.sbatch test_a llama3.1:8b zero_shot`, and the
+   same for `test_b` (50 notes each).
+3. Copy `llama3.1-8b_zero_shot_test_a.jsonl` and `..._test_b.jsonl` back into
+   `data/prediction_runs/test/`, then into `data/predictions/`.
+4. `python -m src.eval.metrics --set test_a`, `--set test_b`, `--set combined` (no `--pair`) →
+   `python -m src.eval.report_md --set SET` for each. This is the first time the test label
+   files are opened. Score once; no prompt changes after this.
+
+**After that:** Stage 6, silver labeling with the frozen config. The full pool takes ≈ 2 days at
+~2.5 s/note, so subsample.
 
 **Notes:**
 - **Earlier local runs (superseded).** Local dev runs stopped partway when the PC hard-powered-off

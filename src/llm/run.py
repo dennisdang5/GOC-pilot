@@ -2,7 +2,8 @@
 
 Run from the repo root:
   python -m src.llm.run --model llama3.1:8b --strategy zero_shot --set dev [--limit 3]
-  python -m src.llm.run --freeze      # record current prompt hashes; unlocks test_a / test_b
+  python -m src.llm.run --freeze zero_shot   # record that strategy's prompt hash; unlocks
+                                             # test_a / test_b for it only
 
 Writes data/predictions/{model}_{strategy}_{set}.jsonl (append-only, latest per ROW_ID wins) and
 raw model replies to data/predictions/raw/{model}_{strategy}_{set}/{prompt_hash}/{ROW_ID}.json.
@@ -17,7 +18,8 @@ the prompt length is estimated conservatively from characters; a note that might
 sent and is recorded with error "truncated". After the call, done_reason "length" (output cut off)
 is also recorded.
 
-Test sets are refused unless src/llm/prompts/FROZEN matches the current prompt hashes.
+Test sets are refused unless src/llm/prompts/FROZEN holds the strategy's current prompt hash
+(strategies not frozen are always refused).
 """
 
 import argparse
@@ -40,7 +42,7 @@ PRED_DIR = ROOT / "data" / "predictions"
 FROZEN_PATH = PROMPT_DIR / "FROZEN"
 
 HOST = "http://localhost:11434"
-NUM_CTX = 32768
+NUM_CTX = 16384
 NUM_PREDICT = 400
 SEED = 20261028
 CHARS_PER_TOKEN = 2.5  # conservative for MIMIC text (abbreviations, punctuation)
@@ -50,8 +52,10 @@ def file_stem(model: str, strategy: str, set_name: str) -> str:
     return f"{model.replace(':', '-').replace('/', '_')}_{strategy}_{set_name}"
 
 
-def freeze(path: Path = FROZEN_PATH) -> dict:
-    record = {s: prompt_hash(s) for s in STRATEGIES}
+def freeze(strategies=STRATEGIES, path: Path = FROZEN_PATH) -> dict:
+    """Record the current prompt hash of each given strategy. A strategy left out stays refused
+    on test sets by check_frozen."""
+    record = {s: prompt_hash(s) for s in strategies}
     record["frozen_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     return record
@@ -63,7 +67,11 @@ def check_frozen(set_name: str, strategy: str, path: Path = FROZEN_PATH) -> None
         return
     if not path.exists():
         raise PermissionError(f"{set_name} is frozen: prompts not frozen yet (no {path.name})")
-    if json.loads(path.read_text(encoding="utf-8")).get(strategy) != prompt_hash(strategy):
+    record = json.loads(path.read_text(encoding="utf-8"))
+    if strategy not in record:
+        raise PermissionError(f"{set_name}: {strategy} is not frozen (FROZEN has "
+                              f"{sorted(k for k in record if k != 'frozen_at')})")
+    if record[strategy] != prompt_hash(strategy):
         raise PermissionError(f"{set_name}: {strategy} prompt changed since it was frozen")
 
 
@@ -149,11 +157,12 @@ def main() -> int:
     ap.add_argument("--set", dest="set_name", choices=["dev", "test_a", "test_b"])
     ap.add_argument("--limit", type=int, help="first N ROW_IDs only (smoke test)")
     ap.add_argument("--host", default=HOST)
-    ap.add_argument("--freeze", action="store_true")
+    ap.add_argument("--freeze", nargs="+", choices=STRATEGIES, metavar="STRATEGY",
+                    help="record these strategies' prompt hashes in FROZEN")
     args = ap.parse_args()
 
     if args.freeze:
-        print("frozen:", json.dumps(freeze()))
+        print("frozen:", json.dumps(freeze(args.freeze)))
         return 0
     if not (args.model and args.strategy and args.set_name):
         ap.error("--model, --strategy and --set are required")
