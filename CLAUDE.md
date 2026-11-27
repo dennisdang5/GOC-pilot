@@ -740,15 +740,26 @@ gold `unclear`. Reports: `reports/results_{test_a,test_b,combined}.md`.
 - Well below dev (F1 0.84), consistent with dev being tuned on and revised after seeing output.
 
 **▶ Resume here: the llama3.1 few-shot (r3) test run (§3.6, 2026-11-26).**
-1. Commit / push the r3 re-freeze, then `git pull` on CARC.
-2. On CARC:
-   `sbatch --account=xiangren_1987 slurm/run_llm.sbatch test_a llama3.1:8b few_shot`, and the
-   same for `test_b`.
+1. ✅ r3 re-freeze pushed (`de581d2`, which also cut the slurm time limit to 30 min) and pulled
+   on CARC.
+2. ✅ Submitted on CARC 2026-11-26 (A100): **test_a job 14943319**, **test_b job 14943320**
+   (`slurm/run_llm.sbatch test_X llama3.1:8b few_shot`).
 3. Copy `llama3.1-8b_few_shot_test_a.jsonl` and `..._test_b.jsonl` into
    `data/prediction_runs/test/`, then into `data/predictions/`. Check 50/50 with hash
    `152a46a1e633`.
+   Before copying, check the CARC logs (`slurm/logs/goc-llm-<job>.out`): `ok 50` and any error
+   types / ROW_IDs. Also check: ROW_IDs match the sample, no other prompt hash, error ROW_IDs
+   (counts and IDs only).
 4. `python -m src.eval.metrics --set SET --pair llama3.1-8b_zero_shot llama3.1-8b_few_shot` for
    test_a, test_b and combined → `report_md --set SET`. The zero-shot rows must match `bdace5a`.
+   Failed predictions count as `no` (§4.5), as for zero-shot.
+5. Write a hand-written summary (between `<!-- summary:start -->` / `<!-- summary:end -->`) in
+   each `reports/results_{test_a,test_b,combined}.md`: zero-shot vs few-shot, the McNemar
+   result (call them "comparable" unless p < 0.05), and the caveats (few-shot added after the
+   zero-shot test results were seen; zero-shot stays primary; test_b PPV not comparable with
+   test_a).
+6. Add the few-shot test results table under the zero-shot one in this section, then ask before
+   committing / pushing.
 
 **After that:** Stage 6, silver labeling with the frozen config. The full pool takes ≈ 2 days at
 ~2.5 s/note, so subsample.
