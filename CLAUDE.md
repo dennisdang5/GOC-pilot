@@ -9,7 +9,9 @@ tune prompts on dev, score the frozen prompts once on test, and then use the bes
 **Where things stand:** data prep, sampling, labeling, the LLM pipeline and evaluation are all
 built. Dev is being tuned in **rounds** (one prompt version each, all kept): see
 [`reports/rounds_dev.md`](reports/rounds_dev.md). Rounds r0–r4 are scored, and dev tuning is
-over. **llama3.1 zero-shot** is the selected config, frozen for one test run (§3.6, §5).
+over. **llama3.1 zero-shot** is the selected config, and it has been scored on test (§5). llama3.1
+**few-shot (r3 prompts)** was added on 2026-11-26 as a secondary test comparison (§3.6) and is
+waiting for its CARC run.
 
 ---
 
@@ -249,6 +251,25 @@ order.
   - `FROZEN` records only the zero-shot hash (`--freeze zero_shot`). Few-shot is refused on test
     sets. `fewshot.jsonl` stays at r4's version, unused on test.
   - Decided on dev aggregates only; no test label or prediction had been opened.
+- **2026-11-26, llama3.1 few-shot (r3) added to the test sets, after zero-shot was scored.**
+  The user wanted to compare zero-shot with few-shot on test. This is a deviation from the
+  2026-11-23 single-config freeze: it was decided **after the zero-shot test results had been
+  seen** (combined F1 0.50, sens 0.95, PPV 0.34).
+  - Round chosen on dev aggregates only: **r3 few-shot** (`152a46a1e633`, dev F1 0.75). r1
+    (dev F1 0.80, one FP fewer) was rejected because its system prompt differs from the frozen
+    zero-shot. r3 shares the zero-shot system / user prompt (`98dca2eeac05`), so a test
+    difference comes from the 4 examples alone. r3 ran at `num_ctx` 16384 on dev, the current
+    setting; all test notes fit (max estimate 11.2k + 400).
+  - Live `fewshot.jsonl` reset from r4 to the r3 file; FROZEN re-written with
+    `--freeze zero_shot few_shot` (zero-shot hash unchanged; first frozen
+    2026-11-24T01:28:35Z). `tests/test_rounds.py` now checks the live prompts against FROZEN
+    instead of the newest round.
+  - The McNemar pair `llama3.1-8b_zero_shot` vs `llama3.1-8b_few_shot` was named before the
+    few-shot test run. The zero-shot-only test reports were committed first (`bdace5a`).
+  - **llama3.1 zero-shot stays the selected (primary) config.** Few-shot on test is a secondary
+    comparison and must not be used to re-select the config for Stage 6 without saying so.
+  - The zero-shot `truncated` prediction on test_b (ROW_ID 473790, output hit `num_predict`;
+    gold no) was kept and scored as `no` (user decision).
 
 ---
 
@@ -432,10 +453,11 @@ Decisions (user-approved 2026-10-28):
 - **Test-set guard:** `--set test_a | test_b` is refused unless `src/llm/prompts/FROZEN` holds
   that strategy's current prompt hash. `python -m src.llm.run --freeze STRATEGY [...]` records
   only the named strategies; a strategy left out is always refused. Frozen 2026-11-23 with
-  `--freeze zero_shot`. `metrics.py` applies the same check to every strategy that has
-  prediction files on the test set. "combined" is assembled in eval, not run.
+  `--freeze zero_shot`; re-frozen 2026-11-26 with `--freeze zero_shot few_shot` (r3 prompts,
+  §3.6). `metrics.py` applies the same check to every strategy that has prediction files on the
+  test set. "combined" is assembled in eval, not run.
 - `slurm/run_llm.sbatch SET [MODELS] [STRATEGIES]`: optional model / strategy lists (default all
-  3 × 2). The test run uses `llama3.1:8b zero_shot`.
+  3 × 2). The test runs use `llama3.1:8b zero_shot` (done) and `llama3.1:8b few_shot`.
 
 Files:
 - `src/llm/run.py --model M --strategy S --set dev [--limit N]` →
@@ -538,7 +560,7 @@ Decisions (user-approved 2026-10-29):
 
 ---
 
-## 5. Status and next steps (2026-11-23, frozen; test run next)
+## 5. Status and next steps (2026-11-26, zero-shot scored on test; few-shot r3 run next)
 
 **Labels (all in):**
 - dev 30/30 (5 members; 8 yes, 22 no, 0 unclear after the 2026-11-06 and 2026-11-11
@@ -701,16 +723,32 @@ Details and hand-written summary in [`reports/rounds/dev_r4/results.md`](reports
 `98dca2eeac05`, `num_ctx` 16384. `src/llm/prompts/FROZEN` holds only the zero-shot hash. No
 `--pair`s (single config).
 
-**▶ Resume here: the single test run.**
-1. Commit / push the freeze, then `git pull` on CARC.
+**Test results, llama3.1 zero-shot (CARC, A100, scored 2026-11-26, commit `bdace5a`).**
+Predictions in `data/prediction_runs/test/` and `data/predictions/`. test_a 50/50 ok; test_b
+49/50 ok, 1 `truncated` (ROW_ID 473790, output hit `num_predict`, gold no, scored as no). No
+gold `unclear`. Reports: `reports/results_{test_a,test_b,combined}.md`.
+
+| Set | gold yes | TP / FP / FN / TN | sens | PPV | spec | F1 |
+|---|---|---|---|---|---|---|
+| test_a | 9/50 | 8 / 11 / 1 / 30 | 0.89 (0.57–0.98) | 0.42 (0.23–0.64) | 0.73 (0.58–0.84) | 0.57 |
+| test_b | 11/50 | 11 / 26 / 0 / 13 | 1.00 (0.74–1.00) | 0.30 (0.17–0.46) | 0.33 (0.21–0.49) | 0.46 |
+| combined | 20/100 | 19 / 37 / 1 / 43 | 0.95 (0.76–0.99) | 0.34 (0.23–0.47) | 0.54 (0.43–0.64) | 0.50 |
+
+- Misses are rare; false positives dominate, worst on the cue-rich, near-death test_b. All 11
+  test_a FPs are in cues_present (cues_missing 15/15 TN, 0 positives).
+- Verified quotes on yes: 42/56. Grounded recall (combined) 0.60 (0.39–0.78).
+- Well below dev (F1 0.84), consistent with dev being tuned on and revised after seeing output.
+
+**▶ Resume here: the llama3.1 few-shot (r3) test run (§3.6, 2026-11-26).**
+1. Commit / push the r3 re-freeze, then `git pull` on CARC.
 2. On CARC:
-   `sbatch --account=xiangren_1987 slurm/run_llm.sbatch test_a llama3.1:8b zero_shot`, and the
-   same for `test_b` (50 notes each).
-3. Copy `llama3.1-8b_zero_shot_test_a.jsonl` and `..._test_b.jsonl` back into
-   `data/prediction_runs/test/`, then into `data/predictions/`.
-4. `python -m src.eval.metrics --set test_a`, `--set test_b`, `--set combined` (no `--pair`) →
-   `python -m src.eval.report_md --set SET` for each. This is the first time the test label
-   files are opened. Score once; no prompt changes after this.
+   `sbatch --account=xiangren_1987 slurm/run_llm.sbatch test_a llama3.1:8b few_shot`, and the
+   same for `test_b`.
+3. Copy `llama3.1-8b_few_shot_test_a.jsonl` and `..._test_b.jsonl` into
+   `data/prediction_runs/test/`, then into `data/predictions/`. Check 50/50 with hash
+   `152a46a1e633`.
+4. `python -m src.eval.metrics --set SET --pair llama3.1-8b_zero_shot llama3.1-8b_few_shot` for
+   test_a, test_b and combined → `report_md --set SET`. The zero-shot rows must match `bdace5a`.
 
 **After that:** Stage 6, silver labeling with the frozen config. The full pool takes ≈ 2 days at
 ~2.5 s/note, so subsample.

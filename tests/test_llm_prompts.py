@@ -11,18 +11,18 @@ from src.llm.validate import span_verified
 
 def test_fewshot_examples_are_consistent():
     examples = load_fewshot()
-    assert len(examples) == 5
-    assert len({ex["id"] for ex in examples}) == 5
+    assert len(examples) == 4
+    assert len({ex["id"] for ex in examples}) == 4
     assert all(ex["id"].startswith("syn_") for ex in examples)
     for ex in examples:
         out = LLMOutput.model_validate(ex["output"])
         # a yes example must quote its own note verbatim; a no example has no span
         assert span_verified(out.evidence_span, ex["note"]) is (True if out.goc_present == "yes" else None)
     labels = [ex["output"]["goc_present"] for ex in examples]
-    assert (labels.count("yes"), labels.count("no")) == (4, 1)
+    assert (labels.count("yes"), labels.count("no")) == (2, 2)
 
 
-@pytest.mark.parametrize("strategy, n_messages", [("zero_shot", 2), ("few_shot", 12)])
+@pytest.mark.parametrize("strategy, n_messages", [("zero_shot", 2), ("few_shot", 10)])
 def test_build_messages_shape(strategy, n_messages):
     msgs = build_messages("Synthetic note {with braces}.", strategy)
     assert len(msgs) == n_messages

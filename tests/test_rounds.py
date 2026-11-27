@@ -1,9 +1,11 @@
 """Prompt-tuning round registry: every prompt version is registered and kept (synthetic prompts)."""
 
+import json
 import re
 
 from src.llm import prompts
 from src.llm.rounds import ROUNDS_DIR, current_round, load_rounds
+from src.llm.run import FROZEN_PATH
 
 
 def snapshot_hashes(monkeypatch, rid):
@@ -23,10 +25,16 @@ def test_round_ids_and_fields():
         assert e["changes"].strip(), rid
 
 
-def test_current_prompts_are_the_newest_round():
-    """Editing a prompt without registering a new round fails here."""
+def test_current_prompts_are_the_frozen_round():
+    """Dev tuning is over (2026-11-23): the live prompts must be a registered round, and every
+    strategy in FROZEN must match them (r3 since 2026-11-26). Editing a prompt fails here."""
     rounds = load_rounds()
-    assert current_round(rounds) == list(rounds)[-1]
+    rid = current_round(rounds)
+    assert rid is not None
+    frozen = json.loads(FROZEN_PATH.read_text(encoding="utf-8"))
+    frozen_hashes = {s: h for s, h in frozen.items() if s in prompts.STRATEGIES}
+    assert frozen_hashes
+    assert all(rounds[rid]["prompt_hash"][s] == h for s, h in frozen_hashes.items())
 
 
 def test_every_snapshot_reproduces_its_hashes(monkeypatch):
